@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutGrid, Clock } from "lucide-react";
+import { LayoutGrid, Clock, LogOut } from "lucide-react";
 import { BridgeLogo } from "./BridgeLogo";
 import { useAlarm } from "@/contexts/AlarmContext";
+import { useUser, useClerk } from "@clerk/react";
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +15,8 @@ export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { pendingOrders, testAlarm } = useAlarm();
   const [time, setTime] = useState(new Date());
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -93,13 +98,45 @@ export function Layout({ children }: LayoutProps) {
               })}
             </p>
           </div>
-          <button
-            onClick={testAlarm}
-            data-testid="btn-test-alarm"
-            className="w-full text-xs text-white/60 hover:text-white/90 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            Tester l'alarme
-          </button>
+
+          {/* User info */}
+          {user && (
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
+                {user.imageUrl ? (
+                  <img src={user.imageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{(user.firstName?.[0] ?? user.emailAddresses?.[0]?.emailAddress?.[0] ?? "?").toUpperCase()}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-semibold truncate">
+                  {user.firstName ?? user.emailAddresses?.[0]?.emailAddress}
+                </p>
+                <p className="text-white/50 text-xs truncate">
+                  {user.emailAddresses?.[0]?.emailAddress}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={testAlarm}
+              data-testid="btn-test-alarm"
+              className="flex-1 text-xs text-white/60 hover:text-white/90 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Tester l'alarme
+            </button>
+            <button
+              onClick={() => signOut({ redirectUrl: basePath || "/" })}
+              data-testid="btn-sign-out"
+              className="text-white/60 hover:text-white/90 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              title="Se déconnecter"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </aside>
 
