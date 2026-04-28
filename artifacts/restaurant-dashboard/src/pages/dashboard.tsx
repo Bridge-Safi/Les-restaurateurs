@@ -14,7 +14,6 @@ import { useAlarm } from "@/contexts/AlarmContext";
 import { formatCurrency, formatTimeAgo } from "@/lib/formatters";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -31,444 +30,384 @@ import {
   CheckCircle,
   XCircle,
   ChefHat,
-  Bell,
   Zap,
   MapPin,
+  StickyNote,
+  AlertCircle,
 } from "lucide-react";
 
-function PlatformBadge({ platform }: { platform: string }) {
-  const styles: Record<string, string> = {
-    "Bridge Eats": "bg-[#FF6B35] text-white",
-    "Uber Eats": "bg-black text-white",
-    "Deliveroo": "bg-[#00CDBC] text-white",
-    "Just Eat": "bg-[#FF8000] text-white",
+/* ── Platform badge ── */
+function Platform({ name }: { name: string }) {
+  const map: Record<string, { bg: string; text: string }> = {
+    "Bridge Eats": { bg: "#FF6B35", text: "#fff" },
+    "Uber Eats":   { bg: "#000",    text: "#fff" },
+    "Deliveroo":   { bg: "#00CDBC", text: "#fff" },
+    "Just Eat":    { bg: "#FF8000", text: "#fff" },
   };
-  const cls = styles[platform] ?? "bg-gray-200 text-gray-800";
+  const s = map[name] ?? { bg: "#6B7280", text: "#fff" };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
-      {platform}
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
+      style={{ backgroundColor: s.bg, color: s.text }}
+    >
+      {name}
     </span>
   );
 }
 
-function StatusKanban({ status, label, color, count, children }: {
-  status: string; label: string; color: string; count: number; children: React.ReactNode;
+/* ── Status column ── */
+function Column({
+  label, accent, count, children,
+}: {
+  label: string; accent: string; count: number; children: React.ReactNode;
 }) {
-  const headerColors: Record<string, string> = {
-    orange: "bg-orange-500",
-    blue: "bg-blue-500",
-    green: "bg-emerald-500",
-  };
   return (
-    <div className="flex flex-col min-h-0 flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className={`${headerColors[color]} px-5 py-4 flex items-center justify-between`}>
-        <span className="text-white font-bold text-sm uppercase tracking-wider">{label}</span>
-        <span className="bg-white/25 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
+    <div className="flex flex-col min-h-0 flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: accent }} />
+        <span className="text-xs font-bold text-gray-600 uppercase tracking-widest flex-1">{label}</span>
+        <span
+          className="text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+          style={{ backgroundColor: accent + "22", color: accent }}
+        >
           {count}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px]">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {children}
       </div>
     </div>
   );
 }
 
-function OrderCard({ order, onAccept, onReject, onReady }: {
+/* ── Order card ── */
+function Card({
+  order,
+  onAccept,
+  onReject,
+  onReady,
+}: {
   order: Order;
   onAccept?: (id: number) => void;
   onReject?: (id: number) => void;
   onReady?: (id: number) => void;
 }) {
   const isPending = order.status === "pending";
-  const isAccepted = order.status === "accepted";
-  const leftBorder = isPending
-    ? "border-l-4 border-l-orange-400"
-    : isAccepted
-    ? "border-l-4 border-l-blue-400"
-    : "border-l-4 border-l-emerald-400";
-  const bgTint = isPending ? "bg-orange-50/50" : "bg-white";
 
   return (
     <div
       data-testid={`order-card-${order.id}`}
-      className={`rounded-xl p-4 shadow-sm border border-gray-100 ${leftBorder} ${bgTint} transition-shadow hover:shadow-md`}
+      className={`rounded-xl border p-4 transition-shadow hover:shadow-md ${
+        isPending
+          ? "border-orange-200 bg-orange-50/40"
+          : "border-gray-100 bg-white"
+      }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-gray-900 text-base">#{order.orderNumber}</span>
-          <PlatformBadge platform={order.platform} />
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="font-bold text-gray-900 text-sm">#{order.orderNumber}</span>
+            <Platform name={order.platform} />
+          </div>
+          <p className="text-xs font-medium text-gray-600">{order.customerName}</p>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="font-bold text-gray-900">{formatCurrency(order.totalAmount)}</div>
-          <div className="text-xs text-gray-400">{formatTimeAgo(order.createdAt)}</div>
+          <p className="font-bold text-gray-900 text-sm">{formatCurrency(order.totalAmount)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{formatTimeAgo(order.createdAt)}</p>
         </div>
       </div>
 
-      <div className="mb-2">
-        <p className="font-semibold text-gray-800 text-sm">{order.customerName}</p>
-        {order.deliveryAddress && (
-          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-            <MapPin size={11} /> {order.deliveryAddress}
-          </p>
-        )}
-      </div>
+      {/* Address */}
+      {order.deliveryAddress && (
+        <p className="text-[11px] text-gray-500 flex items-center gap-1 mb-2">
+          <MapPin size={10} className="flex-shrink-0" />
+          {order.deliveryAddress}
+        </p>
+      )}
 
-      <div className="text-xs text-gray-600 space-y-0.5 mb-3">
+      {/* Items */}
+      <div className="text-[11px] text-gray-600 space-y-0.5 mb-3">
         {order.items.slice(0, 3).map((item, i) => (
           <div key={i} className="flex gap-1">
-            <span className="font-medium text-gray-700">{item.quantity}x</span>
-            <span>{item.name}</span>
+            <span className="font-bold text-gray-400 w-5 flex-shrink-0">{item.quantity}×</span>
+            <span className="truncate">{item.name}</span>
           </div>
         ))}
         {order.items.length > 3 && (
-          <div className="text-gray-400 italic">+{order.items.length - 3} autre(s)</div>
+          <p className="text-gray-400 italic">+{order.items.length - 3} article(s)</p>
         )}
       </div>
 
+      {/* Notes */}
       {order.notes && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-1.5 mb-3 text-xs text-yellow-800">
-          {order.notes}
+        <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mb-3">
+          <StickyNote size={11} className="text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-700 leading-snug">{order.notes}</p>
         </div>
       )}
 
-      {order.estimatedPrepTime && isAccepted && (
-        <div className="flex items-center gap-1 text-xs text-blue-600 mb-3">
-          <Timer size={12} />
-          <span>Prêt dans ~{order.estimatedPrepTime} min</span>
+      {/* Prep time */}
+      {order.estimatedPrepTime && order.status === "accepted" && (
+        <div className="flex items-center gap-1.5 text-[11px] text-blue-600 mb-3">
+          <Timer size={11} />
+          Prêt dans ~{order.estimatedPrepTime} min
         </div>
       )}
 
+      {/* Actions */}
       {isPending && onAccept && onReject && (
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            size="sm"
-            variant="destructive"
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
             onClick={() => onReject(order.id)}
             data-testid={`btn-reject-${order.id}`}
-            className="text-xs"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors"
           >
-            <XCircle size={14} className="mr-1" /> Refuser
-          </Button>
-          <Button
-            size="sm"
+            <XCircle size={13} /> Refuser
+          </button>
+          <button
             onClick={() => onAccept(order.id)}
             data-testid={`btn-accept-${order.id}`}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors"
           >
-            <CheckCircle size={14} className="mr-1" /> Accepter
-          </Button>
+            <CheckCircle size={13} /> Accepter
+          </button>
         </div>
       )}
 
-      {isAccepted && onReady && (
-        <Button
-          size="sm"
+      {order.status === "accepted" && onReady && (
+        <button
           onClick={() => onReady(order.id)}
           data-testid={`btn-ready-${order.id}`}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors mt-1"
         >
-          <ChefHat size={14} className="mr-1" /> Marquer comme prête
-        </Button>
+          <ChefHat size={13} /> Marquer comme prête
+        </button>
       )}
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-  sublabel,
+/* ── Stat card ── */
+function Stat({
+  label, value, icon: Icon, accent, sub,
 }: {
-  label: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  sublabel?: string;
+  label: string; value: string | number; icon: React.ElementType; accent: string; sub?: string;
 }) {
-  const iconBg: Record<string, string> = {
-    blue: "bg-blue-100 text-blue-600",
-    orange: "bg-orange-100 text-orange-600",
-    green: "bg-emerald-100 text-emerald-600",
-    purple: "bg-purple-100 text-purple-600",
-  };
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg[color]}`}>
-        <Icon size={22} />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-4">
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: accent + "18" }}
+      >
+        <Icon size={18} style={{ color: accent }} />
       </div>
       <div>
-        <p className="text-xs text-gray-500 font-medium mb-0.5">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
+        <p className="text-xs text-gray-400 font-medium mb-0.5">{label}</p>
+        <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
+        {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
       </div>
     </div>
   );
 }
 
+/* ── Empty column ── */
+function Empty({ icon: Icon, msg }: { icon: React.ElementType; msg: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-28 text-gray-300 gap-2">
+      <Icon size={28} />
+      <p className="text-xs text-gray-400">{msg}</p>
+    </div>
+  );
+}
+
+/* ── Page ── */
 export default function Dashboard() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const { pendingOrders, acceptSingleOrder, rejectSingleOrder } = useAlarm();
   const { data: stats, isLoading: statsLoading } = useGetOrderStats();
   const { data: recentOrders = [], isLoading: ordersLoading } = useGetRecentOrders();
   const markReady = useMarkOrderReady();
   const createOrder = useCreateOrder();
 
-  const [acceptDialog, setAcceptDialog] = useState<number | null>(null);
-  const [rejectDialog, setRejectDialog] = useState<number | null>(null);
-  const [selectedPrepTime, setSelectedPrepTime] = useState(20);
+  const [acceptId, setAcceptId] = useState<number | null>(null);
+  const [rejectId, setRejectId] = useState<number | null>(null);
+  const [prepTime, setPrepTime] = useState(20);
 
-  const acceptedOrders = recentOrders.filter((o) => o.status === "accepted");
-  const readyOrders = recentOrders.filter((o) => o.status === "ready");
+  const accepted = recentOrders.filter((o) => o.status === "accepted");
+  const ready    = recentOrders.filter((o) => o.status === "ready");
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetRecentOrdersQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-  };
-
-  const handleAccept = async (id: number) => {
-    setAcceptDialog(id);
+    qc.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetRecentOrdersQueryKey() });
+    qc.invalidateQueries({ queryKey: getListOrdersQueryKey() });
   };
 
   const confirmAccept = async () => {
-    if (acceptDialog == null) return;
-    await acceptSingleOrder(acceptDialog);
+    if (acceptId == null) return;
+    await acceptSingleOrder(acceptId);
     invalidate();
-    setAcceptDialog(null);
-    toast({ title: "Commande acceptée", description: `Temps de préparation : ${selectedPrepTime} min` });
-  };
-
-  const handleReject = (id: number) => {
-    setRejectDialog(id);
+    setAcceptId(null);
+    toast({ title: "Commande acceptée", description: `Préparation : ${prepTime} min` });
   };
 
   const confirmReject = async () => {
-    if (rejectDialog == null) return;
-    await rejectSingleOrder(rejectDialog);
+    if (rejectId == null) return;
+    await rejectSingleOrder(rejectId);
     invalidate();
-    setRejectDialog(null);
+    setRejectId(null);
     toast({ title: "Commande refusée", variant: "destructive" });
   };
 
   const handleReady = async (id: number) => {
     await markReady.mutateAsync({ id });
     invalidate();
-    toast({ title: "Commande prête", description: "Le livreur peut venir la chercher." });
+    toast({ title: "Commande prête !" });
   };
 
   const handleSimulate = async () => {
-    const rand = Math.floor(Math.random() * 9000) + 1000;
+    const n = Math.floor(Math.random() * 9000) + 1000;
     await createOrder.mutateAsync({
       data: {
-        orderNumber: `TEST-${rand}`,
+        orderNumber: `TEST-${n}`,
         platform: "Bridge Eats",
         customerName: "Client Test",
         customerPhone: "+33 6 00 00 00 00",
         items: [
           { name: "Burger Bridge", quantity: 2, price: 14.5 },
-          { name: "Frites", quantity: 2, price: 3.5 },
+          { name: "Frites maison", quantity: 2, price: 3.5 },
         ],
         totalAmount: 36.0,
         estimatedPrepTime: 20,
-        deliveryAddress: "12 rue de Rivoli, Paris",
-        notes: "Commande de test — sans pickles",
+        deliveryAddress: "12 rue de Rivoli, 75001 Paris",
+        notes: "Commande test — sans pickles",
       },
     });
     invalidate();
-    toast({ title: "Commande simulée envoyée", description: "Une nouvelle commande Bridge Eats a été créée." });
+    toast({ title: "Commande simulée", description: "Une nouvelle commande a été créée." });
   };
 
-  const prepTimes = [10, 15, 20, 25, 30];
+  const PREP = [10, 15, 20, 25, 30];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-medium text-gray-600">En direct</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSimulate}
-            disabled={createOrder.isPending}
-            data-testid="btn-simulate-order"
-            className="gap-2 border-orange-200 text-orange-600 hover:bg-orange-50"
-          >
-            <Zap size={14} />
-            Simuler une commande
-          </Button>
-        </div>
+      {/* Top bar */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between">
+        <h1 className="font-bold text-gray-900 text-lg">Tableau de bord</h1>
+        <button
+          onClick={handleSimulate}
+          disabled={createOrder.isPending}
+          data-testid="btn-simulate-order"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
+        >
+          <Zap size={14} className="text-[#FF6B35]" />
+          Simuler une commande
+        </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-5 space-y-5">
+
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {statsLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-2xl" />
-            ))
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
           ) : (
             <>
-              <StatCard
-                label="Commandes aujourd'hui"
-                value={stats?.totalToday ?? 0}
-                icon={ShoppingBag}
-                color="blue"
-              />
-              <StatCard
-                label="En attente"
-                value={pendingOrders.length}
-                icon={Clock}
-                color="orange"
-              />
-              <StatCard
-                label="Chiffre du jour"
-                value={formatCurrency(stats?.totalRevenue ?? 0)}
-                icon={Euro}
-                color="green"
-              />
-              <StatCard
+              <Stat label="Commandes aujourd'hui" value={stats?.totalToday ?? 0} icon={ShoppingBag} accent="#3B82F6" />
+              <Stat label="En attente" value={pendingOrders.length} icon={AlertCircle} accent="#FF6B35" />
+              <Stat label="Chiffre du jour" value={formatCurrency(stats?.totalRevenue ?? 0)} icon={Euro} accent="#10B981" />
+              <Stat
                 label="Délai moyen"
                 value={stats?.avgPrepTime ? `${Math.round(stats.avgPrepTime)} min` : "—"}
                 icon={Timer}
-                color="purple"
+                accent="#8B5CF6"
               />
             </>
           )}
         </div>
 
         {/* Kanban */}
-        <div className="grid grid-cols-3 gap-4 flex-1 min-h-0" style={{ height: "calc(100vh - 320px)" }}>
-          <StatusKanban
-            status="pending"
-            label="Nouvelles"
-            color="orange"
-            count={pendingOrders.length}
-          >
-            {pendingOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                <CheckCircle size={32} className="mb-2 text-emerald-300" />
-                <p className="text-sm">Aucune commande en attente</p>
-              </div>
-            ) : (
-              pendingOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onAccept={handleAccept}
-                  onReject={handleReject}
-                />
-              ))
-            )}
-          </StatusKanban>
-
-          <StatusKanban
-            status="accepted"
-            label="En cuisine"
-            color="blue"
-            count={ordersLoading ? 0 : acceptedOrders.length}
-          >
-            {ordersLoading
-              ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)
-              : acceptedOrders.length === 0
-              ? (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                  <ChefHat size={32} className="mb-2 text-blue-200" />
-                  <p className="text-sm">Aucune commande en cuisine</p>
-                </div>
-              )
-              : acceptedOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onReady={handleReady}
-                />
+        <div
+          className="grid grid-cols-3 gap-4"
+          style={{ height: "calc(100vh - 260px)" }}
+        >
+          <Column label="Nouvelles commandes" accent="#FF6B35" count={pendingOrders.length}>
+            {pendingOrders.length === 0
+              ? <Empty icon={CheckCircle} msg="Aucune commande en attente" />
+              : pendingOrders.map((o) => (
+                <Card key={o.id} order={o} onAccept={setAcceptId} onReject={setRejectId} />
               ))}
-          </StatusKanban>
+          </Column>
 
-          <StatusKanban
-            status="ready"
-            label="Pretes a partir"
-            color="green"
-            count={ordersLoading ? 0 : readyOrders.length}
-          >
+          <Column label="En cuisine" accent="#3B82F6" count={ordersLoading ? 0 : accepted.length}>
             {ordersLoading
-              ? Array.from({ length: 1 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
-              : readyOrders.length === 0
-              ? (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                  <ShoppingBag size={32} className="mb-2 text-emerald-200" />
-                  <p className="text-sm">Rien pour l'instant</p>
-                </div>
-              )
-              : readyOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
-              ))}
-          </StatusKanban>
+              ? <Skeleton className="h-28 rounded-xl" />
+              : accepted.length === 0
+              ? <Empty icon={ChefHat} msg="Aucune commande en préparation" />
+              : accepted.map((o) => <Card key={o.id} order={o} onReady={handleReady} />)}
+          </Column>
+
+          <Column label="Prêtes à partir" accent="#10B981" count={ordersLoading ? 0 : ready.length}>
+            {ordersLoading
+              ? <Skeleton className="h-24 rounded-xl" />
+              : ready.length === 0
+              ? <Empty icon={ShoppingBag} msg="Aucune commande prête" />
+              : ready.map((o) => <Card key={o.id} order={o} />)}
+          </Column>
         </div>
       </div>
 
-      {/* Accept Dialog */}
-      <Dialog open={acceptDialog !== null} onOpenChange={() => setAcceptDialog(null)}>
-        <DialogContent>
+      {/* Accept dialog */}
+      <Dialog open={acceptId !== null} onOpenChange={() => setAcceptId(null)}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Accepter la commande</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600 mb-4">Quel est le temps de preparation ?</p>
+          <p className="text-sm text-gray-500 mb-4">Choisissez le temps de préparation estimé :</p>
           <div className="grid grid-cols-5 gap-2">
-            {prepTimes.map((t) => (
+            {PREP.map((t) => (
               <button
                 key={t}
-                onClick={() => setSelectedPrepTime(t)}
+                onClick={() => setPrepTime(t)}
                 data-testid={`prep-time-${t}`}
-                className={`py-2 rounded-lg text-sm font-semibold border-2 transition-colors ${
-                  selectedPrepTime === t
-                    ? "border-orange-500 bg-orange-50 text-orange-700"
-                    : "border-gray-200 text-gray-600 hover:border-orange-300"
+                className={`py-2.5 rounded-lg text-sm font-bold border-2 transition-all ${
+                  prepTime === t
+                    ? "border-[#FF6B35] bg-orange-50 text-orange-600"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
                 {t} min
               </button>
             ))}
           </div>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setAcceptDialog(null)}>
-              Annuler
-            </Button>
+          <DialogFooter className="mt-5">
+            <Button variant="outline" onClick={() => setAcceptId(null)}>Annuler</Button>
             <Button
               onClick={confirmAccept}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white"
               data-testid="btn-confirm-accept"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white"
             >
-              <CheckCircle size={16} className="mr-2" /> Confirmer
+              <CheckCircle size={15} className="mr-1.5" /> Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Reject Dialog */}
-      <Dialog open={rejectDialog !== null} onOpenChange={() => setRejectDialog(null)}>
-        <DialogContent>
+      {/* Reject dialog */}
+      <Dialog open={rejectId !== null} onOpenChange={() => setRejectId(null)}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Refuser la commande</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600">Etes-vous sur de vouloir refuser cette commande ?</p>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setRejectDialog(null)}>
-              Annuler
-            </Button>
+          <p className="text-sm text-gray-500">Êtes-vous sûr de vouloir refuser cette commande ? Le client en sera informé.</p>
+          <DialogFooter className="mt-5">
+            <Button variant="outline" onClick={() => setRejectId(null)}>Annuler</Button>
             <Button
               variant="destructive"
               onClick={confirmReject}
               data-testid="btn-confirm-reject"
             >
-              <XCircle size={16} className="mr-2" /> Refuser
+              <XCircle size={15} className="mr-1.5" /> Refuser
             </Button>
           </DialogFooter>
         </DialogContent>
