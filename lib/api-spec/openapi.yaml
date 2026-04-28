@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bridge Restaurant Order API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: orders
+    description: Restaurant orders management
 paths:
   /healthz:
     get:
@@ -24,6 +25,170 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List all orders
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrdersResponse"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderBody"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get a single order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /orders/{id}/accept:
+    post:
+      operationId: acceptOrder
+      tags: [orders]
+      summary: Accept an order (restaurant validates it)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptOrderBody"
+      responses:
+        "200":
+          description: Order accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /orders/{id}/reject:
+    post:
+      operationId: rejectOrder
+      tags: [orders]
+      summary: Reject an order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectOrderBody"
+      responses:
+        "200":
+          description: Order rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /orders/{id}/ready:
+    post:
+      operationId: markOrderReady
+      tags: [orders]
+      summary: Mark order as ready for pickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /orders/stats/summary:
+    get:
+      operationId: getOrderStats
+      tags: [orders]
+      summary: Get order statistics summary
+      responses:
+        "200":
+          description: Order stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderStats"
+
+  /orders/stats/recent:
+    get:
+      operationId: getRecentOrders
+      tags: [orders]
+      summary: Get the most recent orders
+      responses:
+        "200":
+          description: Recent orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrdersResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +199,148 @@ components:
       required:
         - status
 
+    OrderItem:
+      type: object
+      properties:
+        name:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+        notes:
+          type: ["string", "null"]
+      required:
+        - name
+        - quantity
+        - price
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderNumber:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, rejected, ready, picked_up]
+        platform:
+          type: string
+        customerName:
+          type: string
+        customerPhone:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        totalAmount:
+          type: number
+        estimatedPrepTime:
+          type: ["integer", "null"]
+        deliveryAddress:
+          type: ["string", "null"]
+        deliveryPersonName:
+          type: ["string", "null"]
+        deliveryPersonPhone:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        rejectionReason:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        acceptedAt:
+          type: ["string", "null"]
+          format: date-time
+        readyAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - orderNumber
+        - status
+        - platform
+        - customerName
+        - items
+        - totalAmount
+        - createdAt
+        - updatedAt
+
+    ListOrdersResponse:
+      type: array
+      items:
+        $ref: "#/components/schemas/Order"
+
+    CreateOrderBody:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+        platform:
+          type: string
+        customerName:
+          type: string
+        customerPhone:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        totalAmount:
+          type: number
+        estimatedPrepTime:
+          type: ["integer", "null"]
+        deliveryAddress:
+          type: ["string", "null"]
+        deliveryPersonName:
+          type: ["string", "null"]
+        deliveryPersonPhone:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+      required:
+        - orderNumber
+        - platform
+        - customerName
+        - items
+        - totalAmount
+
+    AcceptOrderBody:
+      type: object
+      properties:
+        estimatedPrepTime:
+          type: ["integer", "null"]
+
+    RejectOrderBody:
+      type: object
+      properties:
+        reason:
+          type: ["string", "null"]
+
+    OrderStats:
+      type: object
+      properties:
+        totalToday:
+          type: integer
+        pendingCount:
+          type: integer
+        acceptedCount:
+          type: integer
+        readyCount:
+          type: integer
+        totalRevenue:
+          type: number
+        avgPrepTime:
+          type: ["number", "null"]
+      required:
+        - totalToday
+        - pendingCount
+        - acceptedCount
+        - readyCount
+        - totalRevenue
