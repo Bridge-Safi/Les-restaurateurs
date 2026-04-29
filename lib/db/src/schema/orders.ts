@@ -13,6 +13,7 @@ export type OrderItem = z.infer<typeof orderItemSchema>;
 
 export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
+  restaurantId: text("restaurant_id"),
   orderNumber: text("order_number").notNull(),
   status: text("status").notNull().default("pending"),
   platform: text("platform").notNull(),
