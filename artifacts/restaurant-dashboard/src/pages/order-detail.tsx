@@ -161,7 +161,7 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto pb-16 md:pb-0 p-4 md:p-5">
         <div className="max-w-3xl mx-auto space-y-4">
 
           {/* Timeline */}
@@ -204,9 +204,9 @@ export default function OrderDetail() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Articles */}
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <Section title={`Articles · ${order.items.length} article${order.items.length > 1 ? "s" : ""}`}>
                 <div className="space-y-3 mb-4">
                   {order.items.map((item, i) => (
