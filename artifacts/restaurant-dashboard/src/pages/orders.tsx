@@ -33,9 +33,7 @@ const STATUS_STYLE: Record<string, string> = {
 
 const PLATFORM_STYLE: Record<string, string> = {
   "Bridge Eats": "bg-[#FF6B35] text-white",
-  "Uber Eats":   "bg-gray-900 text-white",
-  "Deliveroo":   "bg-[#00CDBC] text-white",
-  "Just Eat":    "bg-[#FF8000] text-white",
+  "Bridge":      "bg-[#FF6B35] text-white",
 };
 
 export default function Orders() {

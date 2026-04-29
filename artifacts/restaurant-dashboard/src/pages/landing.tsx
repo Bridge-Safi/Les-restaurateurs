@@ -51,7 +51,7 @@ export default function Landing() {
         </h1>
 
         <p className="text-xl text-gray-500 max-w-xl mb-10 leading-relaxed font-light">
-          Uber Eats, Deliveroo, Just Eat — toutes vos plateformes centralisées.
+          Recevez et gérez toutes vos commandes Bridge depuis un seul tableau de bord.
           Alarme sonore, kanban temps réel, statistiques du jour.
         </p>
 

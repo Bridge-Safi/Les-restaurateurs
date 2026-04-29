@@ -27,9 +27,7 @@ import {
 function Platform({ name }: { name: string }) {
   const map: Record<string, { bg: string; text: string }> = {
     "Bridge Eats": { bg: "#FF6B35", text: "#fff" },
-    "Uber Eats":   { bg: "#000",    text: "#fff" },
-    "Deliveroo":   { bg: "#00CDBC", text: "#fff" },
-    "Just Eat":    { bg: "#FF8000", text: "#fff" },
+    "Bridge":      { bg: "#FF6B35", text: "#fff" },
   };
   const s = map[name] ?? { bg: "#6B7280", text: "#fff" };
   return (
