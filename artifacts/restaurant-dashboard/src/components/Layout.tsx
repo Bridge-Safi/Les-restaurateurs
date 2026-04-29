@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutGrid, History, LogOut, Bell } from "lucide-react";
+import { LayoutGrid, History, LogOut, Bell, Settings } from "lucide-react";
 import { useAlarm } from "@/contexts/AlarmContext";
 import { useUser, useClerk } from "@clerk/react";
 
@@ -25,8 +25,9 @@ export function Layout({ children }: LayoutProps) {
   const timeStr = time.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
   const navItems = [
-    { href: "/",       label: "Tableau de bord", icon: LayoutGrid, testid: "dashboard" },
-    { href: "/orders", label: "Historique",       icon: History,    testid: "orders"    },
+    { href: "/",          label: "Tableau de bord", icon: LayoutGrid, testid: "dashboard" },
+    { href: "/orders",    label: "Historique",       icon: History,    testid: "orders"    },
+    { href: "/settings",  label: "Paramètres",       icon: Settings,   testid: "settings"  },
   ];
 
   const initials = (

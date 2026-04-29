@@ -1,0 +1,289 @@
+import { useState, useEffect } from "react";
+import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Copy, RefreshCw, Check, Store, Link2, AlertTriangle } from "lucide-react";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API = `${BASE}/api`;
+
+interface RestaurantProfile {
+  id: number;
+  clerkUserId: string;
+  name: string;
+  apiToken: string;
+  createdAt: string;
+}
+
+function useCopy() {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+  return { copy, copied };
+}
+
+export default function Settings() {
+  const [profile, setProfile] = useState<RestaurantProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const { copy, copied } = useCopy();
+
+  const webhookUrl = `${window.location.origin}${BASE}/api/webhook/orders`;
+
+  useEffect(() => {
+    fetch(`${API}/restaurant/me`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: RestaurantProfile) => {
+        setProfile(data);
+        setName(data.name);
+      })
+      .catch(() => toast({ title: "Erreur de chargement", variant: "destructive" }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSaveName = async () => {
+    if (!profile || name.trim() === profile.name) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/restaurant/me`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const updated = await res.json();
+      setProfile(updated);
+      setName(updated.name);
+      toast({ title: "Nom mis à jour" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRegenToken = async () => {
+    setRegenerating(true);
+    try {
+      const res = await fetch(`${API}/restaurant/me/regenerate-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const updated = await res.json();
+      setProfile(updated);
+      setConfirmRegen(false);
+      toast({ title: "Nouveau token généré", description: "Mettez à jour votre configuration Bridge Eats." });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 flex-shrink-0">
+        <h1 className="font-bold text-gray-900 text-base md:text-lg">Paramètres & Intégration</h1>
+        <p className="text-xs text-gray-400 mt-0.5">Configurez votre restaurant et connectez Bridge Eats</p>
+      </div>
+
+      <div className="flex-1 overflow-auto pb-16 md:pb-0 p-4 md:p-6">
+        <div className="max-w-2xl mx-auto space-y-5">
+
+          {/* ── Restaurant name ── */}
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                <Store size={16} className="text-[#FF6B35]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-900 text-sm">Mon restaurant</h2>
+                <p className="text-[11px] text-gray-400">Nom affiché dans le tableau de bord</p>
+              </div>
+            </div>
+            {loading ? (
+              <Skeleton className="h-10 w-full rounded-lg" />
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                  placeholder="Nom de votre restaurant"
+                  className="flex-1"
+                  data-testid="input-restaurant-name"
+                />
+                <Button
+                  onClick={handleSaveName}
+                  disabled={saving || name.trim() === profile?.name}
+                  data-testid="btn-save-name"
+                  className="bg-[#FF6B35] hover:bg-orange-600 text-white px-4"
+                >
+                  {saving ? "..." : "Enregistrer"}
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Bridge Eats integration ── */}
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Link2 size={16} className="text-blue-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-900 text-sm">Intégration Bridge Eats</h2>
+                <p className="text-[11px] text-gray-400">Donnez ces informations à votre responsable Bridge Eats</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 mb-5 mt-3 leading-relaxed">
+              Bridge Eats enverra automatiquement vos nouvelles commandes à cette URL en utilisant votre token secret. Dès qu'une commande arrive, l'alarme sonne et elle apparaît sur votre tableau de bord.
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 rounded-xl" />
+                <Skeleton className="h-12 rounded-xl" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Webhook URL */}
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                    URL du Webhook
+                  </label>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                    <code className="flex-1 text-xs text-gray-700 font-mono truncate" data-testid="webhook-url">
+                      {webhookUrl}
+                    </code>
+                    <button
+                      onClick={() => copy(webhookUrl, "url")}
+                      className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
+                      data-testid="btn-copy-url"
+                      title="Copier l'URL"
+                    >
+                      {copied === "url" ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Header */}
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                    Header requis
+                  </label>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                    <code className="flex-1 text-xs text-gray-600 font-mono">X-Bridge-Token</code>
+                  </div>
+                </div>
+
+                {/* API Token */}
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                    Token secret
+                  </label>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                    <code className="flex-1 text-xs text-gray-700 font-mono truncate" data-testid="api-token">
+                      {profile?.apiToken}
+                    </code>
+                    <button
+                      onClick={() => copy(profile!.apiToken, "token")}
+                      className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
+                      data-testid="btn-copy-token"
+                      title="Copier le token"
+                    >
+                      {copied === "token" ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* ── Exemple cURL ── */}
+          {!loading && profile && (
+            <section className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Exemple d'envoi de commande
+              </p>
+              <pre className="text-xs text-green-400 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
+{`curl -X POST ${webhookUrl} \\
+  -H "Content-Type: application/json" \\
+  -H "X-Bridge-Token: ${profile.apiToken}" \\
+  -d '{
+  "orderNumber": "BE-1234",
+  "customerName": "Jean Dupont",
+  "customerPhone": "+33 6 12 34 56 78",
+  "items": [
+    {"name": "Burger Bridge", "quantity": 2, "price": 14.5}
+  ],
+  "totalAmount": 29.0,
+  "deliveryAddress": "12 rue de Rivoli, Paris"
+}'`}
+              </pre>
+            </section>
+          )}
+
+          {/* ── Danger zone ── */}
+          {!loading && (
+            <section className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
+              <div className="flex items-center gap-2.5 mb-3">
+                <AlertTriangle size={16} className="text-red-500" />
+                <h2 className="font-bold text-gray-900 text-sm">Zone de danger</h2>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Regénérer le token invalidera immédiatement l'ancien. Bridge Eats devra être mis à jour avec le nouveau token.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmRegen(true)}
+                data-testid="btn-regen-token"
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                <RefreshCw size={13} className="mr-1.5" /> Regénérer le token
+              </Button>
+            </section>
+          )}
+
+        </div>
+      </div>
+
+      {/* Confirm regen dialog */}
+      <Dialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+        <DialogContent className="max-w-sm mx-4">
+          <DialogHeader>
+            <DialogTitle>Regénérer le token ?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            L'ancien token sera immédiatement invalidé. Vous devrez mettre à jour votre configuration Bridge Eats.
+          </p>
+          <DialogFooter className="mt-5 gap-2">
+            <Button variant="outline" onClick={() => setConfirmRegen(false)} className="flex-1">Annuler</Button>
+            <Button
+              variant="destructive"
+              onClick={handleRegenToken}
+              disabled={regenerating}
+              data-testid="btn-confirm-regen"
+              className="flex-1"
+            >
+              <RefreshCw size={13} className="mr-1.5" />
+              {regenerating ? "En cours..." : "Confirmer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

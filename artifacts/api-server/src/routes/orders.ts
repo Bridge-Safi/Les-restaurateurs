@@ -15,16 +15,13 @@ import {
 
 const router: IRouter = Router();
 
-/* All order routes require authentication */
-router.use(requireAuth());
-
 /* Helper: get the restaurant ID from the request (Clerk userId) */
 function getRestaurantId(req: Request): string {
   return req.auth.userId!;
 }
 
 /* GET /orders/stats/summary */
-router.get("/orders/stats/summary", async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/stats/summary", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const restaurantId = getRestaurantId(req);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -67,7 +64,7 @@ router.get("/orders/stats/summary", async (req: Request, res: Response): Promise
 });
 
 /* GET /orders/stats/recent */
-router.get("/orders/stats/recent", async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/stats/recent", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const restaurantId = getRestaurantId(req);
 
   const orders = await db
@@ -81,7 +78,7 @@ router.get("/orders/stats/recent", async (req: Request, res: Response): Promise<
 });
 
 /* GET /orders */
-router.get("/orders", async (req: Request, res: Response): Promise<void> => {
+router.get("/orders", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const parsed = ListOrdersQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -110,7 +107,7 @@ router.get("/orders", async (req: Request, res: Response): Promise<void> => {
 });
 
 /* POST /orders */
-router.post("/orders", async (req: Request, res: Response): Promise<void> => {
+router.post("/orders", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -142,7 +139,7 @@ router.post("/orders", async (req: Request, res: Response): Promise<void> => {
 });
 
 /* GET /orders/:id */
-router.get("/orders/:id", async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/:id", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -170,7 +167,7 @@ router.get("/orders/:id", async (req: Request, res: Response): Promise<void> => 
 });
 
 /* POST /orders/:id/accept */
-router.post("/orders/:id/accept", async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/accept", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const params = AcceptOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -213,7 +210,7 @@ router.post("/orders/:id/accept", async (req: Request, res: Response): Promise<v
 });
 
 /* POST /orders/:id/reject */
-router.post("/orders/:id/reject", async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/reject", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const params = RejectOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -251,7 +248,7 @@ router.post("/orders/:id/reject", async (req: Request, res: Response): Promise<v
 });
 
 /* POST /orders/:id/ready */
-router.post("/orders/:id/ready", async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/ready", requireAuth(), async (req: Request, res: Response): Promise<void> => {
   const params = MarkOrderReadyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
