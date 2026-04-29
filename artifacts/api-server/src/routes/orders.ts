@@ -1,7 +1,7 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { db, ordersTable } from "@workspace/db";
-import { requireAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -15,14 +15,15 @@ import {
 
 const router: IRouter = Router();
 
-/* Helper: get the restaurant ID from the request (Clerk userId) */
-function getRestaurantId(req: Request): string {
-  return req.auth.userId!;
+/* Helper: get the restaurant ID from the request (Clerk userId) — returns null if not authenticated */
+function getRestaurantId(req: Request): string | null {
+  return getAuth(req).userId ?? null;
 }
 
 /* GET /orders/stats/summary */
-router.get("/orders/stats/summary", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/stats/summary", async (req: Request, res: Response): Promise<void> => {
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -64,8 +65,9 @@ router.get("/orders/stats/summary", requireAuth(), async (req: Request, res: Res
 });
 
 /* GET /orders/stats/recent */
-router.get("/orders/stats/recent", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/stats/recent", async (req: Request, res: Response): Promise<void> => {
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const orders = await db
     .select()
@@ -78,7 +80,7 @@ router.get("/orders/stats/recent", requireAuth(), async (req: Request, res: Resp
 });
 
 /* GET /orders */
-router.get("/orders", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.get("/orders", async (req: Request, res: Response): Promise<void> => {
   const parsed = ListOrdersQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -86,6 +88,7 @@ router.get("/orders", requireAuth(), async (req: Request, res: Response): Promis
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
   const { status, limit } = parsed.data;
 
   const conditions = [eq(ordersTable.restaurantId, restaurantId)];
@@ -107,7 +110,7 @@ router.get("/orders", requireAuth(), async (req: Request, res: Response): Promis
 });
 
 /* POST /orders */
-router.post("/orders", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.post("/orders", async (req: Request, res: Response): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -115,6 +118,7 @@ router.post("/orders", requireAuth(), async (req: Request, res: Response): Promi
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const [order] = await db
     .insert(ordersTable)
@@ -139,7 +143,7 @@ router.post("/orders", requireAuth(), async (req: Request, res: Response): Promi
 });
 
 /* GET /orders/:id */
-router.get("/orders/:id", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.get("/orders/:id", async (req: Request, res: Response): Promise<void> => {
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -147,6 +151,7 @@ router.get("/orders/:id", requireAuth(), async (req: Request, res: Response): Pr
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const [order] = await db
     .select()
@@ -167,7 +172,7 @@ router.get("/orders/:id", requireAuth(), async (req: Request, res: Response): Pr
 });
 
 /* POST /orders/:id/accept */
-router.post("/orders/:id/accept", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/accept", async (req: Request, res: Response): Promise<void> => {
   const params = AcceptOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -181,6 +186,7 @@ router.post("/orders/:id/accept", requireAuth(), async (req: Request, res: Respo
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const updateData: Record<string, unknown> = {
     status: "accepted",
@@ -210,7 +216,7 @@ router.post("/orders/:id/accept", requireAuth(), async (req: Request, res: Respo
 });
 
 /* POST /orders/:id/reject */
-router.post("/orders/:id/reject", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/reject", async (req: Request, res: Response): Promise<void> => {
   const params = RejectOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -224,6 +230,7 @@ router.post("/orders/:id/reject", requireAuth(), async (req: Request, res: Respo
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const [order] = await db
     .update(ordersTable)
@@ -248,7 +255,7 @@ router.post("/orders/:id/reject", requireAuth(), async (req: Request, res: Respo
 });
 
 /* POST /orders/:id/ready */
-router.post("/orders/:id/ready", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.post("/orders/:id/ready", async (req: Request, res: Response): Promise<void> => {
   const params = MarkOrderReadyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -256,6 +263,7 @@ router.post("/orders/:id/ready", requireAuth(), async (req: Request, res: Respon
   }
 
   const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).json({ error: "Non authentifié" }); return; }
 
   const [order] = await db
     .update(ordersTable)

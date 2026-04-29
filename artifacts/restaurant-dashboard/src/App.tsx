@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -128,10 +128,26 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+/* Auto-creates the restaurant profile on first login so the API token is available immediately */
+function RestaurantInitializer() {
+  const { isSignedIn } = useAuth();
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (!isSignedIn || initialized.current) return;
+    initialized.current = true;
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/restaurant/me`, { credentials: "include" }).catch(() => {});
+  }, [isSignedIn]);
+
+  return null;
+}
+
 function HomeRedirect() {
   return (
     <>
       <Show when="signed-in">
+        <RestaurantInitializer />
         <AlarmProvider>
           <Layout>
             <Dashboard />
@@ -149,6 +165,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Show when="signed-in">
+        <RestaurantInitializer />
         <AlarmProvider>
           <Layout>{children}</Layout>
         </AlarmProvider>

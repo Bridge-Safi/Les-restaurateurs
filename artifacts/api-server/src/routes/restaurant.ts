@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, restaurantsTable, ordersTable } from "@workspace/db";
-import { requireAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -25,13 +25,18 @@ async function getOrCreateRestaurant(clerkUserId: string) {
 }
 
 /* ── GET /api/restaurant/me — auto-creates profile on first visit ── */
-router.get("/restaurant/me", requireAuth(), async (req: Request, res: Response): Promise<void> => {
-  const restaurant = await getOrCreateRestaurant(req.auth.userId!);
+router.get("/restaurant/me", async (req: Request, res: Response): Promise<void> => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const restaurant = await getOrCreateRestaurant(userId);
   res.json(restaurant);
 });
 
 /* ── PATCH /api/restaurant/me — update name ── */
-router.patch("/restaurant/me", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+router.patch("/restaurant/me", async (req: Request, res: Response): Promise<void> => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+
   const parsed = z.object({ name: z.string().min(1).max(100) }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Nom invalide" });
@@ -41,7 +46,7 @@ router.patch("/restaurant/me", requireAuth(), async (req: Request, res: Response
   const [updated] = await db
     .update(restaurantsTable)
     .set({ name: parsed.data.name })
-    .where(eq(restaurantsTable.clerkUserId, req.auth.userId!))
+    .where(eq(restaurantsTable.clerkUserId, userId))
     .returning();
 
   if (!updated) {
@@ -55,12 +60,14 @@ router.patch("/restaurant/me", requireAuth(), async (req: Request, res: Response
 /* ── POST /api/restaurant/me/regenerate-token ── */
 router.post(
   "/restaurant/me/regenerate-token",
-  requireAuth(),
   async (req: Request, res: Response): Promise<void> => {
+    const { userId } = getAuth(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+
     const [updated] = await db
       .update(restaurantsTable)
       .set({ apiToken: sql`gen_random_uuid()` })
-      .where(eq(restaurantsTable.clerkUserId, req.auth.userId!))
+      .where(eq(restaurantsTable.clerkUserId, userId))
       .returning();
 
     if (!updated) {
