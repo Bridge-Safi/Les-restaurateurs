@@ -27,6 +27,7 @@ export const ordersTable = pgTable("orders", {
   deliveryPersonPhone: text("delivery_person_phone"),
   notes: text("notes"),
   rejectionReason: text("rejection_reason"),
+  callbackUrl: text("callback_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),

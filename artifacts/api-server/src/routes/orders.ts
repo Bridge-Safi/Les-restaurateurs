@@ -12,6 +12,7 @@ import {
   RejectOrderBody,
   MarkOrderReadyParams,
 } from "@workspace/api-zod";
+import { notifyBridgeEats } from "./restaurant";
 
 const router: IRouter = Router();
 
@@ -212,6 +213,18 @@ router.post("/orders/:id/accept", async (req: Request, res: Response): Promise<v
     return;
   }
 
+  /* Notify Bridge Eats asynchronously — do not block the response */
+  if (order.callbackUrl) {
+    notifyBridgeEats(order.callbackUrl, {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: "accepted",
+      estimatedPrepTime: order.estimatedPrepTime,
+    }).then((result) => {
+      req.log.info({ orderId: order.id, callbackResult: result }, "Bridge Eats callback: accepted");
+    }).catch(() => {/* swallow */});
+  }
+
   res.json(order);
 });
 
@@ -251,6 +264,18 @@ router.post("/orders/:id/reject", async (req: Request, res: Response): Promise<v
     return;
   }
 
+  /* Notify Bridge Eats asynchronously */
+  if (order.callbackUrl) {
+    notifyBridgeEats(order.callbackUrl, {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: "rejected",
+      rejectionReason: order.rejectionReason,
+    }).then((result) => {
+      req.log.info({ orderId: order.id, callbackResult: result }, "Bridge Eats callback: rejected");
+    }).catch(() => {/* swallow */});
+  }
+
   res.json(order);
 });
 
@@ -282,6 +307,17 @@ router.post("/orders/:id/ready", async (req: Request, res: Response): Promise<vo
   if (!order) {
     res.status(404).json({ error: "Order not found" });
     return;
+  }
+
+  /* Notify Bridge Eats asynchronously */
+  if (order.callbackUrl) {
+    notifyBridgeEats(order.callbackUrl, {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: "ready",
+    }).then((result) => {
+      req.log.info({ orderId: order.id, callbackResult: result }, "Bridge Eats callback: ready");
+    }).catch(() => {/* swallow */});
   }
 
   res.json(order);

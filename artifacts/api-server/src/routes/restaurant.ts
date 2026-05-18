@@ -24,6 +24,34 @@ async function getOrCreateRestaurant(clerkUserId: string) {
   return created;
 }
 
+/* ── Helper: fire-and-forget callback to Bridge Eats ── */
+export async function notifyBridgeEats(
+  callbackUrl: string,
+  payload: {
+    orderId: number;
+    orderNumber: string;
+    status: "accepted" | "ready" | "rejected";
+    estimatedPrepTime?: number | null;
+    rejectionReason?: string | null;
+  }
+) {
+  try {
+    const res = await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { ok: false, status: res.status, body: text };
+    }
+    return { ok: true, status: res.status };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 /* ── GET /api/restaurant/me — auto-creates profile on first visit ── */
 router.get("/restaurant/me", async (req: Request, res: Response): Promise<void> => {
   const { userId } = getAuth(req);
@@ -83,7 +111,7 @@ router.post(
    PUBLIC WEBHOOK — called by Bridge Eats (no Clerk auth)
    POST /api/webhook/orders
    Header: X-Bridge-Token: <apiToken>
-   Body: same as CreateOrderBody
+   Body: same as CreateOrderBody + optional callbackUrl
 ═══════════════════════════════════════════════════════════════ */
 
 const WebhookOrderBody = z.object({
@@ -104,6 +132,8 @@ const WebhookOrderBody = z.object({
   deliveryPersonName: z.string().optional(),
   deliveryPersonPhone: z.string().optional(),
   notes: z.string().optional(),
+  /* Bridge Eats provides this URL to receive status callbacks */
+  callbackUrl: z.string().url().optional(),
 });
 
 router.post("/webhook/orders", async (req: Request, res: Response): Promise<void> => {
@@ -146,12 +176,13 @@ router.post("/webhook/orders", async (req: Request, res: Response): Promise<void
       deliveryPersonName: d.deliveryPersonName ?? null,
       deliveryPersonPhone: d.deliveryPersonPhone ?? null,
       notes: d.notes ?? null,
+      callbackUrl: d.callbackUrl ?? null,
       status: "pending",
     })
     .returning();
 
-  req.log.info({ orderId: order.id, restaurantId: restaurant.id }, "Webhook order received");
-  res.status(201).json({ orderId: order.id, status: "received" });
+  req.log.info({ orderId: order.id, restaurantId: restaurant.id, callbackUrl: d.callbackUrl }, "Webhook order received");
+  res.status(201).json({ orderId: order.id, orderNumber: order.orderNumber, status: "received" });
 });
 
 export default router;
