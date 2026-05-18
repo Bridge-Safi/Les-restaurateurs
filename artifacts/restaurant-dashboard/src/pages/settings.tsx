@@ -211,30 +211,6 @@ export default function Settings() {
             )}
           </section>
 
-          {/* ── Exemple cURL ── */}
-          {!loading && profile && (
-            <section className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">
-                Exemple d'envoi de commande
-              </p>
-              <pre className="text-xs text-green-400 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
-{`curl -X POST ${webhookUrl} \\
-  -H "Content-Type: application/json" \\
-  -H "X-Bridge-Token: ${profile.apiToken}" \\
-  -d '{
-  "orderNumber": "BE-1234",
-  "customerName": "Jean Dupont",
-  "customerPhone": "+33 6 12 34 56 78",
-  "items": [
-    {"name": "Burger Bridge", "quantity": 2, "price": 14.5}
-  ],
-  "totalAmount": 29.0,
-  "deliveryAddress": "12 rue de Rivoli, Paris"
-}'`}
-              </pre>
-            </section>
-          )}
-
           {/* ── Danger zone ── */}
           {!loading && (
             <section className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
