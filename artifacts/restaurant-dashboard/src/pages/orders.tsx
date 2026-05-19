@@ -44,9 +44,10 @@ export default function Orders() {
     rejected:  t.statusRejected,
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: orders = [], isLoading } = useListOrders(
     tab ? { status: tab } : {},
-    { query: { refetchInterval: 5000 } }
+    { query: { refetchInterval: 2000, refetchIntervalInBackground: true } as any }
   );
 
   const filtered = orders.filter((o) => {

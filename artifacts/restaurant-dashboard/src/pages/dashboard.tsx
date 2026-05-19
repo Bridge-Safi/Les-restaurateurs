@@ -9,7 +9,7 @@ import {
   getGetRecentOrdersQueryKey,
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
-import type { Order } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { Order } from "@workspace/api-client-react";
 import { useAlarm } from "@/contexts/AlarmContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency, formatTimeAgo } from "@/lib/formatters";

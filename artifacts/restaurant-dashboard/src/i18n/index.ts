@@ -100,6 +100,13 @@ export interface T {
   stepReady: string;
   stepDelivered: string;
 
+  /* alarm modal */
+  alarmTitle: (n: number) => string;
+  alarmSubtitle: string;
+  alarmRejectAll: string;
+  alarmAcceptAll: string;
+  alarmAndMore: (n: number) => string;
+
   /* settings */
   settingsTitle: string;
   settingsSubtitle: string;
@@ -210,6 +217,12 @@ const fr: T = {
   stepReady: "Prête",
   stepDelivered: "Livrée",
 
+  alarmTitle: (n) => `${n} COMMANDE${n > 1 ? "S" : ""} EN ATTENTE`,
+  alarmSubtitle: "Acceptez ou refusez pour arrêter l'alarme.",
+  alarmRejectAll: "TOUT REFUSER",
+  alarmAcceptAll: "TOUT ACCEPTER",
+  alarmAndMore: (n) => `...et ${n} de plus`,
+
   settingsTitle: "Paramètres & Intégration",
   settingsSubtitle: "Configurez votre restaurant et connectez Bridge Eats",
   restaurantSection: "Mon restaurant",
@@ -319,6 +332,12 @@ const ar: T = {
   stepReady: "جاهز",
   stepDelivered: "مسلَّم",
 
+  alarmTitle: (n) => `${n} طلب${n > 1 ? "ات" : ""} في الانتظار`,
+  alarmSubtitle: "اقبل أو ارفض لإيقاف المنبّه.",
+  alarmRejectAll: "رفض الكل",
+  alarmAcceptAll: "قبول الكل",
+  alarmAndMore: (n) => `...و ${n} آخر`,
+
   settingsTitle: "الإعدادات والتكامل",
   settingsSubtitle: "أعدّ مطعمك واربطه بـ Bridge Eats",
   restaurantSection: "مطعمي",
@@ -427,6 +446,12 @@ const ber: T = {
   stepAccepted: "Ittwaqbel",
   stepReady: "Ilul",
   stepDelivered: "Ittufs",
+
+  alarmTitle: (n) => `${n} ASENTEṂ${n > 1 ? "EN" : ""} IGEMMEN`,
+  alarmSubtitle: "Qbel neɣ drs ad tsefsxeḍ tazuzt.",
+  alarmRejectAll: "DRS MERRA",
+  alarmAcceptAll: "QBEL MERRA",
+  alarmAndMore: (n) => `...d ${n} nniḍen`,
 
   settingsTitle: "Isntaln & Asqqamu",
   settingsSubtitle: "Sntel taddart-inek u qqu Bridge Eats",

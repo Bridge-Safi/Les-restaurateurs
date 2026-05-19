@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useListOrders, useAcceptOrder, useRejectOrder } from "@workspace/api-client-react";
-import type { Order } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { Order } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { formatCurrency } from "@/lib/formatters";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +20,7 @@ interface AlarmContextType {
 const AlarmContext = createContext<AlarmContextType | null>(null);
 
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
@@ -26,10 +29,12 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const alarmTimeoutRef = useRef<number | null>(null);
   const notifiedOrderIds = useRef<Set<number>>(new Set());
 
-  // Poll pending orders every 3 seconds
+  // Poll pending orders every 2 seconds, even when the tab is in the background.
+  // Cast needed because Orval-generated types don't expose refetchIntervalInBackground.
   const { data: pendingOrders = [] } = useListOrders(
     { status: "pending" },
-    { query: { refetchInterval: 3000 } }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { query: { refetchInterval: 2000, refetchIntervalInBackground: true } as any }
   );
 
   const acceptOrder = useAcceptOrder();
@@ -115,8 +120,8 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
           notifiedOrderIds.current.add(order.id);
           
           if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("🔔 Nouvelle commande!", {
-              body: `Commande #${order.orderNumber} - ${order.totalAmount.toFixed(2)}€ (${order.platform})`,
+            new Notification(`🔔 ${t.alarmTitle(1)}`, {
+              body: `#${order.orderNumber} · ${formatCurrency(order.totalAmount)} · ${order.platform}`,
               icon: "/favicon.svg",
               requireInteraction: true,
             });
@@ -147,7 +152,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const acceptAllPending = async () => {
     try {
-      await Promise.all(pendingOrders.map(o => acceptOrder.mutateAsync({ id: o.id })));
+      await Promise.all(pendingOrders.map(o => acceptOrder.mutateAsync({ id: o.id, data: {} })));
       toast({ title: "Commandes acceptées", description: "Toutes les commandes en attente ont été acceptées." });
       stopAlarm();
     } catch (e) {
@@ -167,7 +172,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const acceptSingleOrder = async (id: number) => {
     try {
-      await acceptOrder.mutateAsync({ id });
+      await acceptOrder.mutateAsync({ id, data: {} });
       toast({ title: "Commande acceptée" });
     } catch (e) {
       toast({ title: "Erreur", variant: "destructive" });
@@ -200,37 +205,39 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
           <div className="bg-card p-8 border-4 border-destructive rounded-lg shadow-2xl max-w-xl w-full text-center space-y-6">
             <h2 className="text-4xl font-bold text-destructive flex items-center justify-center gap-4">
               <span className="animate-pulse">🔔</span>
-              {pendingOrders.length} COMMANDE{pendingOrders.length > 1 ? 'S' : ''} EN ATTENTE
+              {t.alarmTitle(pendingOrders.length)}
             </h2>
-            <p className="text-xl text-muted-foreground">Acceptez ou refusez pour arrêter l'alarme.</p>
+            <p className="text-xl text-muted-foreground">{t.alarmSubtitle}</p>
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <Button 
-                size="lg" 
-                variant="destructive" 
+              <Button
+                size="lg"
+                variant="destructive"
                 className="text-xl h-16 font-bold"
                 onClick={rejectAllPending}
                 disabled={rejectOrder.isPending}
               >
-                TOUT REFUSER
+                {t.alarmRejectAll}
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="text-xl h-16 font-bold bg-green-600 hover:bg-green-700 text-white"
                 onClick={acceptAllPending}
                 disabled={acceptOrder.isPending}
               >
-                TOUT ACCEPTER
+                {t.alarmAcceptAll}
               </Button>
             </div>
             {pendingOrders.length === 1 && (
               <div className="mt-8 text-left bg-muted p-4 rounded-md">
-                <p className="font-bold text-lg">Commande #{pendingOrders[0].orderNumber} - {pendingOrders[0].platform}</p>
-                <p className="text-xl font-mono mt-2">{pendingOrders[0].totalAmount.toFixed(2)} €</p>
+                <p className="font-bold text-lg">#{pendingOrders[0].orderNumber} · {pendingOrders[0].platform}</p>
+                <p className="text-xl font-mono mt-2">{formatCurrency(pendingOrders[0].totalAmount)}</p>
                 <ul className="mt-2 text-sm space-y-1">
                   {pendingOrders[0].items.slice(0, 3).map((item, i) => (
-                    <li key={i}>{item.quantity}x {item.name}</li>
+                    <li key={i}>{(item as { quantity: number; name: string }).quantity}x {(item as { quantity: number; name: string }).name}</li>
                   ))}
-                  {pendingOrders[0].items.length > 3 && <li>...et {pendingOrders[0].items.length - 3} de plus</li>}
+                  {pendingOrders[0].items.length > 3 && (
+                    <li>{t.alarmAndMore(pendingOrders[0].items.length - 3)}</li>
+                  )}
                 </ul>
               </div>
             )}
