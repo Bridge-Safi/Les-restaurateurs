@@ -125,11 +125,12 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
           notifiedOrderIds.current.add(order.id);
           
           if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(`🔔 ${t.alarmTitle(1)}`, {
+            new Notification(`🚨 ${t.alarmTitle(1)}`, {
               body: `#${order.orderNumber} · ${formatCurrency(order.totalAmount)} · ${order.platform}`,
-              icon: "/favicon.svg",
+              icon: "/notification-icon.svg",
+              badge: "/notification-icon.svg",
               requireInteraction: true,
-            });
+            } as NotificationOptions);
           }
         }
       });
