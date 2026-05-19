@@ -3,6 +3,7 @@ import { useListOrders, useAcceptOrder, useRejectOrder } from "@workspace/api-cl
 import type { Order } from "@workspace/api-client-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency } from "@/lib/formatters";
+import { useOrdersSSE } from "@/hooks/useOrdersSSE";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 

@@ -182,6 +182,11 @@ router.post("/webhook/orders", async (req: Request, res: Response): Promise<void
     .returning();
 
   req.log.info({ orderId: order.id, restaurantId: restaurant.id, callbackUrl: d.callbackUrl }, "Webhook order received");
+
+  /* Push real-time notification to all connected dashboard tabs for this restaurant */
+  const { emitNewOrder } = await import("../lib/sseEmitter");
+  emitNewOrder(restaurant.clerkUserId);
+
   res.status(201).json({ orderId: order.id, orderNumber: order.orderNumber, status: "received" });
 });
 

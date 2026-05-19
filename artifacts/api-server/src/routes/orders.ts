@@ -13,6 +13,7 @@ import {
   MarkOrderReadyParams,
 } from "@workspace/api-zod";
 import { notifyBridgeEats } from "./restaurant";
+import { addSseClient, removeSseClient } from "../lib/sseEmitter";
 
 const router: IRouter = Router();
 
@@ -20,6 +21,35 @@ const router: IRouter = Router();
 function getRestaurantId(req: Request): string | null {
   return getAuth(req).userId ?? null;
 }
+
+/* GET /orders/events — SSE stream for real-time order push notifications
+   The browser keeps this connection open; the server sends an "new_order" event
+   whenever a webhook creates an order for this restaurant.
+   EventSource uses cookies automatically, so Clerk session auth works as-is. */
+router.get("/orders/events", (req: Request, res: Response): void => {
+  const restaurantId = getRestaurantId(req);
+  if (!restaurantId) { res.status(401).end(); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // prevent Nginx from buffering SSE
+  res.flushHeaders();
+
+  /* Keep-alive heartbeat every 25 s to prevent proxy/CDN timeouts */
+  const heartbeat = setInterval(() => {
+    try { res.write(": heartbeat\n\n"); } catch { clearInterval(heartbeat); }
+  }, 25_000);
+
+  addSseClient(restaurantId, res);
+  req.log.info({ restaurantId }, "SSE client connected");
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    removeSseClient(restaurantId, res);
+    req.log.info({ restaurantId }, "SSE client disconnected");
+  });
+});
 
 /* GET /orders/stats/summary */
 router.get("/orders/stats/summary", async (req: Request, res: Response): Promise<void> => {
