@@ -47,7 +47,7 @@ export default function Settings() {
       .then((r) => r.json())
       .then((data: RestaurantProfile) => {
         setProfile(data);
-        setName(data.name);
+        setName(data.name ?? "");
       })
       .catch(() => toast({ title: t.toastLoadError, variant: "destructive" }))
       .finally(() => setLoading(false));

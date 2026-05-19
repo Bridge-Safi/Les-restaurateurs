@@ -22,6 +22,10 @@ const AlarmContext = createContext<AlarmContextType | null>(null);
 
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const { t } = useLanguage();
+
+  /* Open SSE connection — invalidates caches instantly when a new order arrives */
+  useOrdersSSE();
+
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
