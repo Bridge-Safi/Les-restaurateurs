@@ -195,6 +195,8 @@ export default function Dashboard() {
 
   const accepted = recentOrders.filter((o) => o.status === "accepted");
   const ready    = recentOrders.filter((o) => o.status === "ready");
+  // "Nouvelles" = commandes en attente + commandes acceptées (toujours en cours de préparation)
+  const newOrders = recentOrders.filter((o) => o.status === "pending" || o.status === "accepted");
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
@@ -249,7 +251,7 @@ export default function Dashboard() {
   const PREP = [10, 15, 20, 25, 30];
 
   const mobileTabs = [
-    { key: "pending"  as const, label: t.tabNew,     accent: "#FF6B35", count: pendingOrders.length },
+    { key: "pending"  as const, label: t.tabNew,     accent: "#FF6B35", count: newOrders.length },
     { key: "accepted" as const, label: t.tabKitchen, accent: "#3B82F6", count: accepted.length },
     { key: "ready"    as const, label: t.tabReady,   accent: "#10B981", count: ready.length },
   ];
@@ -288,10 +290,18 @@ export default function Dashboard() {
 
           {/* Kanban desktop */}
           <div className="hidden md:grid md:grid-cols-3 gap-4" style={{ height: "calc(100vh - 255px)" }}>
-            <Column label={t.colNew} accent="#FF6B35" count={pendingOrders.length}>
-              {pendingOrders.length === 0
+            <Column label={t.colNew} accent="#FF6B35" count={newOrders.length}>
+              {newOrders.length === 0
                 ? <Empty icon={CheckCircle} msg={t.emptyPending} />
-                : pendingOrders.map((o) => <Card key={o.id} order={o} onAccept={setAcceptId} onReject={setRejectId} />)}
+                : newOrders.map((o) => (
+                    <Card
+                      key={o.id}
+                      order={o}
+                      onAccept={o.status === "pending" ? setAcceptId : undefined}
+                      onReject={o.status === "pending" ? setRejectId : undefined}
+                      onReady={o.status === "accepted" ? handleReady : undefined}
+                    />
+                  ))}
             </Column>
             <Column label={t.colKitchen} accent="#3B82F6" count={ordersLoading ? 0 : accepted.length}>
               {ordersLoading ? <Skeleton className="h-28 rounded-xl" />
@@ -330,9 +340,17 @@ export default function Dashboard() {
             </div>
             <div className="space-y-3">
               {mobileTab === "pending" && (
-                pendingOrders.length === 0
+                newOrders.length === 0
                   ? <Empty icon={CheckCircle} msg={t.emptyPending} />
-                  : pendingOrders.map((o) => <Card key={o.id} order={o} onAccept={setAcceptId} onReject={setRejectId} />)
+                  : newOrders.map((o) => (
+                      <Card
+                        key={o.id}
+                        order={o}
+                        onAccept={o.status === "pending" ? setAcceptId : undefined}
+                        onReject={o.status === "pending" ? setRejectId : undefined}
+                        onReady={o.status === "accepted" ? handleReady : undefined}
+                      />
+                    ))
               )}
               {mobileTab === "accepted" && (
                 ordersLoading ? <Skeleton className="h-28 rounded-xl" />
