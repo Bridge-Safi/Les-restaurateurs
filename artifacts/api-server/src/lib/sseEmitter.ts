@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import { logger } from "./logger";
 
 /**
  * In-process SSE bus.
@@ -21,11 +22,17 @@ export function removeSseClient(restaurantId: string, res: Response): void {
 
 export function emitNewOrder(restaurantId: string): void {
   const set = clients.get(restaurantId);
-  if (!set || set.size === 0) return;
+  const clientCount = set?.size ?? 0;
+  logger.info({ restaurantId, clientCount }, "SSE emitNewOrder");
+
+  if (!set || clientCount === 0) return;
+
   const payload = "event: new_order\ndata: {}\n\n";
   for (const res of set) {
     try {
       res.write(payload);
+      /* Force the data through the proxy immediately — critical for production */
+      (res as any).flush?.();
     } catch {
       set.delete(res);
     }

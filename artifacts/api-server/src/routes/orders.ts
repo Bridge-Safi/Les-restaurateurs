@@ -36,10 +36,19 @@ router.get("/orders/events", (req: Request, res: Response): void => {
   res.setHeader("X-Accel-Buffering", "no"); // prevent Nginx from buffering SSE
   res.flushHeaders();
 
-  /* Keep-alive heartbeat every 25 s to prevent proxy/CDN timeouts */
+  /* Tell the browser to reconnect after 500 ms if the connection drops
+     (production proxy cuts connections every ~5 min — default retry is 3 s). */
+  res.write("retry: 500\n\n");
+
+  /* Keep-alive heartbeat every 20 s to prevent proxy/CDN timeouts */
   const heartbeat = setInterval(() => {
-    try { res.write(": heartbeat\n\n"); } catch { clearInterval(heartbeat); }
-  }, 25_000);
+    try {
+      res.write(": heartbeat\n\n");
+      (res as any).flush?.();
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 20_000);
 
   addSseClient(restaurantId, res);
   req.log.info({ restaurantId }, "SSE client connected");
