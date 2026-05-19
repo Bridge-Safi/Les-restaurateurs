@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -7,6 +7,9 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+/* Disable Express ETags globally — avoids stale 304 responses on API routes */
+app.set("etag", false);
 
 app.use(
   pinoHttp({
@@ -35,7 +38,26 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(clerkMiddleware());
+/* Configure Clerk with authorised parties to fix the missing `azp` claim warning.
+   List every domain that the frontend is served from. */
+const authorizedParties = [
+  "https://restaurant.safi-bridge.ma",
+  "https://safi-bridge.ma",
+];
+if (process.env.NODE_ENV !== "production") {
+  authorizedParties.push("http://localhost:5173", "http://localhost:3000");
+}
+app.use(clerkMiddleware({ authorizedParties }));
+
+/* Force no-cache on all API GET responses so new orders appear immediately */
+app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET") {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+  next();
+});
 
 app.use("/api", router);
 
