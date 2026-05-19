@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutGrid, History, LogOut, Bell, Settings } from "lucide-react";
 import { useAlarm } from "@/contexts/AlarmContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LANGS, type Lang } from "@/i18n";
 import { useUser, useClerk } from "@clerk/react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -10,24 +12,47 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+function LangSwitcher() {
+  const { lang, setLang } = useLanguage();
+  return (
+    <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+      {LANGS.map((l) => (
+        <button
+          key={l.code}
+          onClick={() => setLang(l.code as Lang)}
+          className={`px-2 py-1 rounded-md text-xs font-bold transition-all ${
+            lang === l.code
+              ? "bg-[#FF6B35] text-white shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          title={l.code === "fr" ? "Français" : l.code === "ar" ? "العربية" : "Tamazight"}
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
+  const { t, dir } = useLanguage();
   const { pendingOrders, testAlarm } = useAlarm();
   const [time, setTime] = useState(new Date());
   const { user } = useUser();
   const { signOut } = useClerk();
 
   useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(t);
+    const tick = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(tick);
   }, []);
 
   const timeStr = time.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
   const navItems = [
-    { href: "/",          label: "Tableau de bord", icon: LayoutGrid, testid: "dashboard" },
-    { href: "/orders",    label: "Historique",       icon: History,    testid: "orders"    },
-    { href: "/settings",  label: "Paramètres",       icon: Settings,   testid: "settings"  },
+    { href: "/",         label: t.navDashboard, icon: LayoutGrid, testid: "dashboard" },
+    { href: "/orders",   label: t.navHistory,   icon: History,    testid: "orders"    },
+    { href: "/settings", label: t.navSettings,  icon: Settings,   testid: "settings"  },
   ];
 
   const initials = (
@@ -37,7 +62,7 @@ export function Layout({ children }: LayoutProps) {
   ).toUpperCase();
 
   return (
-    <div className="flex h-[100dvh] w-full bg-[#F7F8FA] overflow-hidden">
+    <div dir={dir} className="flex h-[100dvh] w-full bg-[#F7F8FA] overflow-hidden">
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-56 flex-shrink-0 flex-col bg-gray-900 border-r border-white/5">
@@ -85,15 +110,20 @@ export function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* Test alarm */}
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-2">
           <button
             onClick={testAlarm}
             data-testid="btn-test-alarm"
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-sm"
           >
             <Bell size={15} />
-            Tester l'alarme
+            {t.testAlarm}
           </button>
+        </div>
+
+        {/* Lang switcher desktop */}
+        <div className="px-4 pb-3">
+          <LangSwitcher />
         </div>
 
         {/* User */}
@@ -125,7 +155,7 @@ export function Layout({ children }: LayoutProps) {
       {/* ── Main area ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* Top bar — always visible */}
+        {/* Top bar */}
         <div className="bg-white border-b border-gray-100 px-4 md:px-6 h-14 flex items-center justify-between flex-shrink-0 shadow-sm">
           {/* Mobile: brand */}
           <div className="flex items-center gap-2 md:hidden">
@@ -137,7 +167,7 @@ export function Layout({ children }: LayoutProps) {
           {/* Desktop: live indicator */}
           <div className="hidden md:flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">En direct</span>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{t.liveLabel}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -145,10 +175,16 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-full px-3 py-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping flex-shrink-0" />
                 <span className="text-xs font-bold text-orange-600 whitespace-nowrap">
-                  {pendingOrders.length} en attente
+                  {t.pendingCountLabel(pendingOrders.length)}
                 </span>
               </div>
             )}
+
+            {/* Lang switcher mobile */}
+            <div className="md:hidden">
+              <LangSwitcher />
+            </div>
+
             {/* Mobile: sign out */}
             <button
               onClick={() => signOut({ redirectUrl: basePath || "/" })}
@@ -160,8 +196,8 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
 
-        {/* Page content — takes all remaining space above bottom nav */}
-        <div className="flex-1 overflow-hidden pb-0 md:pb-0">
+        {/* Page content */}
+        <div className="flex-1 overflow-hidden">
           {children}
         </div>
       </main>
@@ -200,7 +236,6 @@ export function Layout({ children }: LayoutProps) {
   );
 }
 
-/* Inline SVG bridge+fork icon */
 function BridgeIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 18 18" fill="none">

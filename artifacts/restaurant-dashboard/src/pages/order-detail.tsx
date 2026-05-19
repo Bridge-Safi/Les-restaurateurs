@@ -10,28 +10,18 @@ import {
   getGetRecentOrdersQueryKey,
   getListOrdersQueryKey,
 } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency, formatDateTime, formatTimeAgo } from "@/lib/formatters";
+import { dateFnsLocale } from "@/i18n";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
-  ChefHat,
-  Phone,
-  MapPin,
-  Clock,
-  StickyNote,
+  ArrowLeft, CheckCircle, XCircle, ChefHat,
+  Phone, MapPin, Clock, StickyNote,
 } from "lucide-react";
 
 const STATUS_STEPS = ["pending", "accepted", "ready", "picked_up"];
-const STEP_LABEL: Record<string, string> = {
-  pending:   "Reçue",
-  accepted:  "Acceptée",
-  ready:     "Prête",
-  picked_up: "Livrée",
-};
 
 const PLATFORM_STYLE: Record<string, string> = {
   "Bridge Eats": "bg-[#FF6B35] text-white",
@@ -44,14 +34,6 @@ const STATUS_STYLE: Record<string, string> = {
   ready:     "bg-emerald-100 text-emerald-700",
   picked_up: "bg-gray-100 text-gray-600",
   rejected:  "bg-red-100 text-red-600",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  pending:   "En attente",
-  accepted:  "En cuisine",
-  ready:     "Prête",
-  picked_up: "Livrée",
-  rejected:  "Refusée",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -67,7 +49,24 @@ export default function OrderDetail() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const { t, lang } = useLanguage();
+  const locale = dateFnsLocale(lang);
   const id = Number(params.id);
+
+  const STATUS_LABEL: Record<string, string> = {
+    pending:   t.statusPending,
+    accepted:  t.statusAccepted,
+    ready:     t.statusReady,
+    picked_up: t.statusPickedUp,
+    rejected:  t.statusRejected,
+  };
+
+  const STEP_LABEL: Record<string, string> = {
+    pending:   t.stepReceived,
+    accepted:  t.stepAccepted,
+    ready:     t.stepReady,
+    picked_up: t.stepDelivered,
+  };
 
   const { data: order, isLoading } = useGetOrder(id, {
     query: { queryKey: getGetOrderQueryKey(id), refetchInterval: 5000, enabled: !isNaN(id) },
@@ -87,19 +86,19 @@ export default function OrderDetail() {
   const handleAccept = async () => {
     await acceptOrder.mutateAsync({ id, data: { estimatedPrepTime: 20 } });
     invalidate();
-    toast({ title: "Commande acceptée" });
+    toast({ title: t.toastAccepted });
   };
 
   const handleReject = async () => {
-    await rejectOrder.mutateAsync({ id, data: { reason: "Refusée par le restaurant" } });
+    await rejectOrder.mutateAsync({ id, data: { reason: t.rejectedDefault } });
     invalidate();
-    toast({ title: "Commande refusée", variant: "destructive" });
+    toast({ title: t.toastRejected, variant: "destructive" });
   };
 
   const handleReady = async () => {
     await markReady.mutateAsync({ id });
     invalidate();
-    toast({ title: "Commande prête" });
+    toast({ title: t.toastReady });
   };
 
   if (isLoading) {
@@ -113,7 +112,7 @@ export default function OrderDetail() {
   }
 
   if (!order) {
-    return <div className="p-6 text-center text-gray-400">Commande introuvable.</div>;
+    return <div className="p-6 text-center text-gray-400">{t.orderNotFound}</div>;
   }
 
   const stepIndex = STATUS_STEPS.indexOf(order.status);
@@ -121,7 +120,6 @@ export default function OrderDetail() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-5 py-3.5 flex items-center gap-4">
         <button
           onClick={() => navigate("/orders")}
@@ -130,7 +128,7 @@ export default function OrderDetail() {
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
           <span className="font-bold text-gray-900">#{order.orderNumber}</span>
           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${PLATFORM_STYLE[order.platform] ?? "bg-gray-200 text-gray-700"}`}>
             {order.platform}
@@ -138,22 +136,22 @@ export default function OrderDetail() {
           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${STATUS_STYLE[order.status] ?? "bg-gray-100 text-gray-600"}`}>
             {STATUS_LABEL[order.status] ?? order.status}
           </span>
-          <span className="text-xs text-gray-400 ml-1">{formatTimeAgo(order.createdAt)}</span>
+          <span className="text-xs text-gray-400">{formatTimeAgo(order.createdAt, locale)}</span>
         </div>
         <div className="flex gap-2 flex-shrink-0">
           {order.status === "pending" && (
             <>
               <Button size="sm" variant="destructive" onClick={handleReject} disabled={rejectOrder.isPending} data-testid="btn-reject-detail">
-                <XCircle size={14} className="mr-1.5" /> Refuser
+                <XCircle size={14} className="mr-1.5" /> {t.btnReject}
               </Button>
               <Button size="sm" onClick={handleAccept} disabled={acceptOrder.isPending} data-testid="btn-accept-detail" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                <CheckCircle size={14} className="mr-1.5" /> Accepter
+                <CheckCircle size={14} className="mr-1.5" /> {t.btnAccept}
               </Button>
             </>
           )}
           {order.status === "accepted" && (
             <Button size="sm" onClick={handleReady} disabled={markReady.isPending} data-testid="btn-ready-detail" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <ChefHat size={14} className="mr-1.5" /> Marquer prête
+              <ChefHat size={14} className="mr-1.5" /> {t.btnMarkReadyShort}
             </Button>
           )}
         </div>
@@ -162,9 +160,8 @@ export default function OrderDetail() {
       <div className="flex-1 overflow-auto pb-16 md:pb-0 p-4 md:p-5">
         <div className="max-w-3xl mx-auto space-y-4">
 
-          {/* Timeline */}
           {order.status !== "rejected" && (
-            <Section title="Suivi de la commande">
+            <Section title={t.trackingTitle}>
               <div className="flex items-center">
                 {STATUS_STEPS.map((step, i) => {
                   const done   = i < stepIndex;
@@ -179,7 +176,7 @@ export default function OrderDetail() {
                         }`}>
                           {done ? <CheckCircle size={15} /> : i + 1}
                         </div>
-                        <span className={`text-xs font-medium mt-2 ${
+                        <span className={`text-xs font-medium mt-2 text-center ${
                           active ? "text-[#FF6B35]" : done ? "text-emerald-600" : "text-gray-400"
                         }`}>
                           {STEP_LABEL[step]}
@@ -197,15 +194,14 @@ export default function OrderDetail() {
 
           {order.status === "rejected" && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-              <p className="text-sm font-bold text-red-700 mb-1">Commande refusée</p>
-              <p className="text-sm text-red-600">{order.rejectionReason ?? "Refusée par le restaurant"}</p>
+              <p className="text-sm font-bold text-red-700 mb-1">{t.rejectedBanner}</p>
+              <p className="text-sm text-red-600">{order.rejectionReason ?? t.rejectedDefault}</p>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Articles */}
             <div className="md:col-span-2">
-              <Section title={`Articles · ${order.items.length} article${order.items.length > 1 ? "s" : ""}`}>
+              <Section title={t.articlesSectionTitle(order.items.length)}>
                 <div className="space-y-3 mb-4">
                   {order.items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between gap-4">
@@ -226,19 +222,18 @@ export default function OrderDetail() {
                 </div>
                 <div className="border-t border-gray-100 pt-3 space-y-1.5">
                   <div className="flex justify-between text-sm text-gray-500">
-                    <span>Sous-total</span>
+                    <span>{t.subtotalLabel}</span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-gray-900">
-                    <span>Total</span>
+                    <span>{t.totalLabel}</span>
                     <span>{formatCurrency(order.totalAmount)}</span>
                   </div>
                 </div>
               </Section>
             </div>
 
-            {/* Client */}
-            <Section title="Client">
+            <Section title={t.clientLabel}>
               <p className="font-semibold text-gray-900 mb-2">{order.customerName}</p>
               {order.customerPhone && (
                 <p className="text-sm text-gray-600 flex items-center gap-2 mb-1.5">
@@ -253,14 +248,13 @@ export default function OrderDetail() {
               )}
             </Section>
 
-            {/* Timing */}
-            <Section title="Timing">
+            <Section title={t.timingLabel}>
               <div className="space-y-2">
                 {[
-                  { label: "Reçue le", value: formatDateTime(order.createdAt) },
-                  order.acceptedAt ? { label: "Acceptée à", value: formatDateTime(order.acceptedAt) } : null,
-                  order.readyAt    ? { label: "Prête à",    value: formatDateTime(order.readyAt) }    : null,
-                  order.estimatedPrepTime ? { label: "Préparation estimée", value: `${order.estimatedPrepTime} min` } : null,
+                  { label: t.receivedAt, value: formatDateTime(order.createdAt, locale) },
+                  order.acceptedAt ? { label: t.acceptedAt, value: formatDateTime(order.acceptedAt, locale) } : null,
+                  order.readyAt    ? { label: t.readyAt,    value: formatDateTime(order.readyAt, locale) }    : null,
+                  order.estimatedPrepTime ? { label: t.prepEstimated, value: `${order.estimatedPrepTime} min` } : null,
                 ].filter(Boolean).map((row) => row && (
                   <div key={row.label} className="flex justify-between text-sm">
                     <span className="text-gray-400">{row.label}</span>
@@ -271,20 +265,18 @@ export default function OrderDetail() {
             </Section>
           </div>
 
-          {/* Notes */}
           {order.notes && (
             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
               <StickyNote size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-1">Note du client</p>
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-1">{t.clientNote}</p>
                 <p className="text-sm text-amber-700">{order.notes}</p>
               </div>
             </div>
           )}
 
-          {/* Livreur */}
           {order.deliveryPersonName && (
-            <Section title="Livreur">
+            <Section title={t.deliveryMan}>
               <p className="font-semibold text-gray-900">{order.deliveryPersonName}</p>
               {order.deliveryPersonPhone && (
                 <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">

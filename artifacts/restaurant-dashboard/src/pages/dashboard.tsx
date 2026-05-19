@@ -11,7 +11,9 @@ import {
 } from "@workspace/api-client-react";
 import type { Order } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useAlarm } from "@/contexts/AlarmContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { formatCurrency, formatTimeAgo } from "@/lib/formatters";
+import { dateFnsLocale } from "@/i18n";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,11 +21,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ShoppingBag, Euro, Timer, CheckCircle, XCircle,
+  ShoppingBag, DollarSign, Timer, CheckCircle, XCircle,
   ChefHat, Zap, MapPin, StickyNote, AlertCircle,
 } from "lucide-react";
 
-/* ─ Platform badge ─ */
 function Platform({ name }: { name: string }) {
   const map: Record<string, { bg: string; text: string }> = {
     "Bridge Eats": { bg: "#FF6B35", text: "#fff" },
@@ -40,13 +41,14 @@ function Platform({ name }: { name: string }) {
   );
 }
 
-/* ─ Order card ─ */
 function Card({ order, onAccept, onReject, onReady }: {
   order: Order;
   onAccept?: (id: number) => void;
   onReject?: (id: number) => void;
   onReady?: (id: number) => void;
 }) {
+  const { t, lang } = useLanguage();
+  const locale = dateFnsLocale(lang);
   const isPending = order.status === "pending";
   return (
     <div
@@ -65,7 +67,7 @@ function Card({ order, onAccept, onReject, onReady }: {
         </div>
         <div className="text-right flex-shrink-0">
           <p className="font-bold text-gray-900 text-sm">{formatCurrency(order.totalAmount)}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{formatTimeAgo(order.createdAt)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{formatTimeAgo(order.createdAt, locale)}</p>
         </div>
       </div>
 
@@ -77,14 +79,14 @@ function Card({ order, onAccept, onReject, onReady }: {
       )}
 
       <div className="text-[11px] text-gray-600 space-y-0.5 mb-3">
-        {order.items.slice(0, 3).map((item, i) => (
+        {(order.items as Array<{ quantity: number; name: string }>).slice(0, 3).map((item, i) => (
           <div key={i} className="flex gap-1">
             <span className="font-bold text-gray-400 w-5 flex-shrink-0">{item.quantity}×</span>
             <span className="truncate">{item.name}</span>
           </div>
         ))}
         {order.items.length > 3 && (
-          <p className="text-gray-400 italic">+{order.items.length - 3} article(s)</p>
+          <p className="text-gray-400 italic">{t.moreItems(order.items.length - 3)}</p>
         )}
       </div>
 
@@ -98,7 +100,7 @@ function Card({ order, onAccept, onReject, onReady }: {
       {order.estimatedPrepTime && order.status === "accepted" && (
         <div className="flex items-center gap-1.5 text-[11px] text-blue-600 mb-3">
           <Timer size={11} />
-          Prêt dans ~{order.estimatedPrepTime} min
+          {t.readyIn(order.estimatedPrepTime)}
         </div>
       )}
 
@@ -109,14 +111,14 @@ function Card({ order, onAccept, onReject, onReady }: {
             data-testid={`btn-reject-${order.id}`}
             className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 active:bg-red-100 transition-colors"
           >
-            <XCircle size={13} /> Refuser
+            <XCircle size={13} /> {t.btnReject}
           </button>
           <button
             onClick={() => onAccept(order.id)}
             data-testid={`btn-accept-${order.id}`}
             className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:bg-emerald-700 transition-colors"
           >
-            <CheckCircle size={13} /> Accepter
+            <CheckCircle size={13} /> {t.btnAccept}
           </button>
         </div>
       )}
@@ -127,14 +129,13 @@ function Card({ order, onAccept, onReject, onReady }: {
           data-testid={`btn-ready-${order.id}`}
           className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-colors mt-1"
         >
-          <ChefHat size={13} /> Marquer comme prête
+          <ChefHat size={13} /> {t.btnMarkReady}
         </button>
       )}
     </div>
   );
 }
 
-/* ─ Stat card ─ */
 function Stat({ label, value, icon: Icon, accent }: {
   label: string; value: string | number; icon: React.ElementType; accent: string;
 }) {
@@ -151,7 +152,6 @@ function Stat({ label, value, icon: Icon, accent }: {
   );
 }
 
-/* ─ Empty state ─ */
 function Empty({ icon: Icon, msg }: { icon: React.ElementType; msg: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-gray-300 gap-2">
@@ -161,7 +161,6 @@ function Empty({ icon: Icon, msg }: { icon: React.ElementType; msg: string }) {
   );
 }
 
-/* ─ Column wrapper (desktop only) ─ */
 function Column({ label, accent, count, children }: {
   label: string; accent: string; count: number; children: React.ReactNode;
 }) {
@@ -180,9 +179,9 @@ function Column({ label, accent, count, children }: {
   );
 }
 
-/* ─ Page ─ */
 export default function Dashboard() {
   const qc = useQueryClient();
+  const { t, lang } = useLanguage();
   const { pendingOrders, acceptSingleOrder, rejectSingleOrder } = useAlarm();
   const { data: stats, isLoading: statsLoading } = useGetOrderStats();
   const { data: recentOrders = [], isLoading: ordersLoading } = useGetRecentOrders();
@@ -192,8 +191,6 @@ export default function Dashboard() {
   const [acceptId, setAcceptId] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [prepTime, setPrepTime] = useState(20);
-
-  // Mobile tab: which column to show
   const [mobileTab, setMobileTab] = useState<"pending" | "accepted" | "ready">("pending");
 
   const accepted = recentOrders.filter((o) => o.status === "accepted");
@@ -210,7 +207,7 @@ export default function Dashboard() {
     await acceptSingleOrder(acceptId);
     invalidate();
     setAcceptId(null);
-    toast({ title: "Commande acceptée", description: `Préparation : ${prepTime} min` });
+    toast({ title: t.toastAccepted, description: t.prepSuffix(prepTime) });
   };
 
   const confirmReject = async () => {
@@ -218,13 +215,13 @@ export default function Dashboard() {
     await rejectSingleOrder(rejectId);
     invalidate();
     setRejectId(null);
-    toast({ title: "Commande refusée", variant: "destructive" });
+    toast({ title: t.toastRejected, variant: "destructive" });
   };
 
   const handleReady = async (id: number) => {
     await markReady.mutateAsync({ id });
     invalidate();
-    toast({ title: "Commande prête !" });
+    toast({ title: t.toastReady });
   };
 
   const handleSimulate = async () => {
@@ -234,34 +231,33 @@ export default function Dashboard() {
         orderNumber: `TEST-${n}`,
         platform: "Bridge Eats",
         customerName: "Client Test",
-        customerPhone: "+33 6 00 00 00 00",
+        customerPhone: "+212 6 00 00 00 00",
         items: [
-          { name: "Burger Bridge", quantity: 2, price: 14.5 },
-          { name: "Frites maison", quantity: 2, price: 3.5 },
+          { name: "Burger Bridge", quantity: 2, price: 45 },
+          { name: "Frites maison", quantity: 2, price: 15 },
         ],
-        totalAmount: 36.0,
+        totalAmount: 120,
         estimatedPrepTime: 20,
-        deliveryAddress: "12 rue de Rivoli, 75001 Paris",
-        notes: "Commande test — sans pickles",
+        deliveryAddress: "Safi, Maroc",
+        notes: "Commande test",
       },
     });
     invalidate();
-    toast({ title: "Commande simulée", description: "Une nouvelle commande a été créée." });
+    toast({ title: t.toastSimulated, description: t.toastSimulatedDesc });
   };
 
   const PREP = [10, 15, 20, 25, 30];
 
   const mobileTabs = [
-    { key: "pending"  as const, label: "Nouvelles", accent: "#FF6B35", count: pendingOrders.length },
-    { key: "accepted" as const, label: "En cuisine", accent: "#3B82F6", count: accepted.length },
-    { key: "ready"    as const, label: "Prêtes",     accent: "#10B981", count: ready.length },
+    { key: "pending"  as const, label: t.tabNew,     accent: "#FF6B35", count: pendingOrders.length },
+    { key: "accepted" as const, label: t.tabKitchen, accent: "#3B82F6", count: accepted.length },
+    { key: "ready"    as const, label: t.tabReady,   accent: "#10B981", count: ready.length },
   ];
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Header ── */}
       <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <h1 className="font-bold text-gray-900 text-base md:text-lg">Tableau de bord</h1>
+        <h1 className="font-bold text-gray-900 text-base md:text-lg">{t.dashboardTitle}</h1>
         <button
           onClick={handleSimulate}
           disabled={createOrder.isPending}
@@ -269,89 +265,83 @@ export default function Dashboard() {
           className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs md:text-sm font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
         >
           <Zap size={13} className="text-[#FF6B35]" />
-          <span className="hidden sm:inline">Simuler une commande</span>
-          <span className="sm:hidden">Simuler</span>
+          <span className="hidden sm:inline">{t.simulateBtn}</span>
+          <span className="sm:hidden">{t.simulateBtnShort}</span>
         </button>
       </div>
 
       <div className="flex-1 overflow-auto pb-16 md:pb-0">
         <div className="p-4 md:p-5 space-y-4 md:space-y-5">
 
-          {/* ── Stats ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
             {statsLoading ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)
             ) : (
               <>
-                <Stat label="Commandes" value={stats?.totalToday ?? 0} icon={ShoppingBag} accent="#3B82F6" />
-                <Stat label="En attente" value={pendingOrders.length} icon={AlertCircle} accent="#FF6B35" />
-                <Stat label="Chiffre du jour" value={formatCurrency(stats?.totalRevenue ?? 0)} icon={Euro} accent="#10B981" />
-                <Stat label="Délai moyen" value={stats?.avgPrepTime ? `${Math.round(stats.avgPrepTime)} min` : "—"} icon={Timer} accent="#8B5CF6" />
+                <Stat label={t.statOrders}  value={stats?.totalToday ?? 0}                                                icon={ShoppingBag}   accent="#3B82F6" />
+                <Stat label={t.statPending} value={pendingOrders.length}                                                  icon={AlertCircle}   accent="#FF6B35" />
+                <Stat label={t.statRevenue} value={formatCurrency(stats?.totalRevenue ?? 0)}                              icon={DollarSign}    accent="#10B981" />
+                <Stat label={t.statAvgDelay} value={stats?.avgPrepTime ? `${Math.round(stats.avgPrepTime)} min` : "—"}   icon={Timer}         accent="#8B5CF6" />
               </>
             )}
           </div>
 
-          {/* ── Kanban desktop ── */}
+          {/* Kanban desktop */}
           <div className="hidden md:grid md:grid-cols-3 gap-4" style={{ height: "calc(100vh - 255px)" }}>
-            <Column label="Nouvelles commandes" accent="#FF6B35" count={pendingOrders.length}>
+            <Column label={t.colNew} accent="#FF6B35" count={pendingOrders.length}>
               {pendingOrders.length === 0
-                ? <Empty icon={CheckCircle} msg="Aucune commande en attente" />
+                ? <Empty icon={CheckCircle} msg={t.emptyPending} />
                 : pendingOrders.map((o) => <Card key={o.id} order={o} onAccept={setAcceptId} onReject={setRejectId} />)}
             </Column>
-            <Column label="En cuisine" accent="#3B82F6" count={ordersLoading ? 0 : accepted.length}>
+            <Column label={t.colKitchen} accent="#3B82F6" count={ordersLoading ? 0 : accepted.length}>
               {ordersLoading ? <Skeleton className="h-28 rounded-xl" />
-                : accepted.length === 0 ? <Empty icon={ChefHat} msg="Aucune commande en cours" />
+                : accepted.length === 0 ? <Empty icon={ChefHat} msg={t.emptyKitchen} />
                 : accepted.map((o) => <Card key={o.id} order={o} onReady={handleReady} />)}
             </Column>
-            <Column label="Prêtes à partir" accent="#10B981" count={ordersLoading ? 0 : ready.length}>
+            <Column label={t.colReady} accent="#10B981" count={ordersLoading ? 0 : ready.length}>
               {ordersLoading ? <Skeleton className="h-24 rounded-xl" />
-                : ready.length === 0 ? <Empty icon={ShoppingBag} msg="Aucune commande prête" />
+                : ready.length === 0 ? <Empty icon={ShoppingBag} msg={t.emptyReady} />
                 : ready.map((o) => <Card key={o.id} order={o} />)}
             </Column>
           </div>
 
-          {/* ── Kanban mobile — tabs ── */}
+          {/* Kanban mobile */}
           <div className="md:hidden">
-            {/* Tab bar */}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-3">
-              {mobileTabs.map((t) => (
+              {mobileTabs.map((tab) => (
                 <button
-                  key={t.key}
-                  onClick={() => setMobileTab(t.key)}
+                  key={tab.key}
+                  onClick={() => setMobileTab(tab.key)}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                    mobileTab === t.key
-                      ? "bg-white shadow-sm text-gray-900"
-                      : "text-gray-500"
+                    mobileTab === tab.key ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
                   }`}
                 >
-                  {t.label}
-                  {t.count > 0 && (
+                  {tab.label}
+                  {tab.count > 0 && (
                     <span
                       className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: t.accent }}
+                      style={{ backgroundColor: tab.accent }}
                     >
-                      {t.count}
+                      {tab.count}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-
-            {/* Active column content */}
             <div className="space-y-3">
               {mobileTab === "pending" && (
                 pendingOrders.length === 0
-                  ? <Empty icon={CheckCircle} msg="Aucune commande en attente" />
+                  ? <Empty icon={CheckCircle} msg={t.emptyPending} />
                   : pendingOrders.map((o) => <Card key={o.id} order={o} onAccept={setAcceptId} onReject={setRejectId} />)
               )}
               {mobileTab === "accepted" && (
                 ordersLoading ? <Skeleton className="h-28 rounded-xl" />
-                  : accepted.length === 0 ? <Empty icon={ChefHat} msg="Aucune commande en cours" />
+                  : accepted.length === 0 ? <Empty icon={ChefHat} msg={t.emptyKitchen} />
                   : accepted.map((o) => <Card key={o.id} order={o} onReady={handleReady} />)
               )}
               {mobileTab === "ready" && (
                 ordersLoading ? <Skeleton className="h-24 rounded-xl" />
-                  : ready.length === 0 ? <Empty icon={ShoppingBag} msg="Aucune commande prête" />
+                  : ready.length === 0 ? <Empty icon={ShoppingBag} msg={t.emptyReady} />
                   : ready.map((o) => <Card key={o.id} order={o} />)
               )}
             </div>
@@ -360,49 +350,49 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Accept dialog ── */}
+      {/* Accept dialog */}
       <Dialog open={acceptId !== null} onOpenChange={() => setAcceptId(null)}>
         <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
-            <DialogTitle>Accepter la commande</DialogTitle>
+            <DialogTitle>{t.acceptTitle}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500 mb-4">Temps de préparation estimé :</p>
+          <p className="text-sm text-gray-500 mb-4">{t.prepTimeLabel}</p>
           <div className="grid grid-cols-5 gap-2">
-            {PREP.map((t) => (
+            {PREP.map((time) => (
               <button
-                key={t}
-                onClick={() => setPrepTime(t)}
-                data-testid={`prep-time-${t}`}
+                key={time}
+                onClick={() => setPrepTime(time)}
+                data-testid={`prep-time-${time}`}
                 className={`py-3 rounded-lg text-sm font-bold border-2 transition-all ${
-                  prepTime === t
+                  prepTime === time
                     ? "border-[#FF6B35] bg-orange-50 text-orange-600"
                     : "border-gray-200 text-gray-500"
                 }`}
               >
-                {t}m
+                {time}m
               </button>
             ))}
           </div>
           <DialogFooter className="mt-5 gap-2">
-            <Button variant="outline" onClick={() => setAcceptId(null)} className="flex-1">Annuler</Button>
+            <Button variant="outline" onClick={() => setAcceptId(null)} className="flex-1">{t.cancelBtn}</Button>
             <Button onClick={confirmAccept} data-testid="btn-confirm-accept" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white">
-              <CheckCircle size={15} className="mr-1.5" /> Confirmer
+              <CheckCircle size={15} className="mr-1.5" /> {t.confirmBtn}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Reject dialog ── */}
+      {/* Reject dialog */}
       <Dialog open={rejectId !== null} onOpenChange={() => setRejectId(null)}>
         <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
-            <DialogTitle>Refuser la commande</DialogTitle>
+            <DialogTitle>{t.rejectTitle}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500">Êtes-vous sûr de vouloir refuser cette commande ?</p>
+          <p className="text-sm text-gray-500">{t.rejectConfirmMsg}</p>
           <DialogFooter className="mt-5 gap-2">
-            <Button variant="outline" onClick={() => setRejectId(null)} className="flex-1">Annuler</Button>
+            <Button variant="outline" onClick={() => setRejectId(null)} className="flex-1">{t.cancelBtn}</Button>
             <Button variant="destructive" onClick={confirmReject} data-testid="btn-confirm-reject" className="flex-1">
-              <XCircle size={15} className="mr-1.5" /> Refuser
+              <XCircle size={15} className="mr-1.5" /> {t.btnReject}
             </Button>
           </DialogFooter>
         </DialogContent>

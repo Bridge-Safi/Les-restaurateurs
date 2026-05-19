@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +31,7 @@ function useCopy() {
 }
 
 export default function Settings() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<RestaurantProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +49,7 @@ export default function Settings() {
         setProfile(data);
         setName(data.name);
       })
-      .catch(() => toast({ title: "Erreur de chargement", variant: "destructive" }))
+      .catch(() => toast({ title: t.toastLoadError, variant: "destructive" }))
       .finally(() => setLoading(false));
   }, []);
 
@@ -64,9 +66,9 @@ export default function Settings() {
       const updated = await res.json();
       setProfile(updated);
       setName(updated.name);
-      toast({ title: "Nom mis à jour" });
+      toast({ title: t.toastNameSaved });
     } catch {
-      toast({ title: "Erreur", variant: "destructive" });
+      toast({ title: t.toastError, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -82,9 +84,9 @@ export default function Settings() {
       const updated = await res.json();
       setProfile(updated);
       setConfirmRegen(false);
-      toast({ title: "Nouveau token généré", description: "Mettez à jour votre configuration Bridge Eats." });
+      toast({ title: t.toastNewToken, description: t.toastNewTokenDesc });
     } catch {
-      toast({ title: "Erreur", variant: "destructive" });
+      toast({ title: t.toastError, variant: "destructive" });
     } finally {
       setRegenerating(false);
     }
@@ -93,22 +95,21 @@ export default function Settings() {
   return (
     <div className="flex flex-col h-full">
       <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 flex-shrink-0">
-        <h1 className="font-bold text-gray-900 text-base md:text-lg">Paramètres & Intégration</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Configurez votre restaurant et connectez Bridge Eats</p>
+        <h1 className="font-bold text-gray-900 text-base md:text-lg">{t.settingsTitle}</h1>
+        <p className="text-xs text-gray-400 mt-0.5">{t.settingsSubtitle}</p>
       </div>
 
       <div className="flex-1 overflow-auto pb-16 md:pb-0 p-4 md:p-6">
         <div className="max-w-2xl mx-auto space-y-5">
 
-          {/* ── Restaurant name ── */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
                 <Store size={16} className="text-[#FF6B35]" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-sm">Mon restaurant</h2>
-                <p className="text-[11px] text-gray-400">Nom affiché dans le tableau de bord</p>
+                <h2 className="font-bold text-gray-900 text-sm">{t.restaurantSection}</h2>
+                <p className="text-[11px] text-gray-400">{t.restaurantSectionSub}</p>
               </div>
             </div>
             {loading ? (
@@ -119,7 +120,7 @@ export default function Settings() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-                  placeholder="Nom de votre restaurant"
+                  placeholder={t.namePlaceholder}
                   className="flex-1"
                   data-testid="input-restaurant-name"
                 />
@@ -129,26 +130,25 @@ export default function Settings() {
                   data-testid="btn-save-name"
                   className="bg-[#FF6B35] hover:bg-orange-600 text-white px-4"
                 >
-                  {saving ? "..." : "Enregistrer"}
+                  {saving ? "..." : t.saveBtn}
                 </Button>
               </div>
             )}
           </section>
 
-          {/* ── Bridge Eats integration ── */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-2.5 mb-1">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                 <Link2 size={16} className="text-blue-600" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-sm">Intégration Bridge Eats</h2>
-                <p className="text-[11px] text-gray-400">Donnez ces informations à votre responsable Bridge Eats</p>
+                <h2 className="font-bold text-gray-900 text-sm">{t.integrationTitle}</h2>
+                <p className="text-[11px] text-gray-400">{t.integrationSubtitle}</p>
               </div>
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 mb-5 mt-3 leading-relaxed">
-              Bridge Eats enverra automatiquement vos nouvelles commandes à cette URL en utilisant votre token secret. Dès qu'une commande arrive, l'alarme sonne et elle apparaît sur votre tableau de bord.
+              {t.integrationInfo}
             </div>
 
             {loading ? (
@@ -158,10 +158,9 @@ export default function Settings() {
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Webhook URL */}
                 <div>
                   <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
-                    URL du Webhook
+                    {t.labelWebhookUrl}
                   </label>
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
                     <code className="flex-1 text-xs text-gray-700 font-mono truncate" data-testid="webhook-url">
@@ -171,27 +170,25 @@ export default function Settings() {
                       onClick={() => copy(webhookUrl, "url")}
                       className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
                       data-testid="btn-copy-url"
-                      title="Copier l'URL"
+                      title={t.copyUrlTitle}
                     >
                       {copied === "url" ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Header */}
                 <div>
                   <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
-                    Header requis
+                    {t.labelHeader}
                   </label>
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
                     <code className="flex-1 text-xs text-gray-600 font-mono">X-Bridge-Token</code>
                   </div>
                 </div>
 
-                {/* API Token */}
                 <div>
                   <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
-                    Token secret
+                    {t.labelToken}
                   </label>
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
                     <code className="flex-1 text-xs text-gray-700 font-mono truncate" data-testid="api-token">
@@ -201,7 +198,7 @@ export default function Settings() {
                       onClick={() => copy(profile!.apiToken, "token")}
                       className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
                       data-testid="btn-copy-token"
-                      title="Copier le token"
+                      title={t.copyTokenTitle}
                     >
                       {copied === "token" ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                     </button>
@@ -211,16 +208,13 @@ export default function Settings() {
             )}
           </section>
 
-          {/* ── Danger zone ── */}
           {!loading && (
             <section className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
               <div className="flex items-center gap-2.5 mb-3">
                 <AlertTriangle size={16} className="text-red-500" />
-                <h2 className="font-bold text-gray-900 text-sm">Zone de danger</h2>
+                <h2 className="font-bold text-gray-900 text-sm">{t.dangerTitle}</h2>
               </div>
-              <p className="text-xs text-gray-500 mb-4">
-                Regénérer le token invalidera immédiatement l'ancien. Bridge Eats devra être mis à jour avec le nouveau token.
-              </p>
+              <p className="text-xs text-gray-500 mb-4">{t.dangerInfo}</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -228,7 +222,7 @@ export default function Settings() {
                 data-testid="btn-regen-token"
                 className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
               >
-                <RefreshCw size={13} className="mr-1.5" /> Regénérer le token
+                <RefreshCw size={13} className="mr-1.5" /> {t.regenBtn}
               </Button>
             </section>
           )}
@@ -236,17 +230,14 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Confirm regen dialog */}
       <Dialog open={confirmRegen} onOpenChange={setConfirmRegen}>
         <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
-            <DialogTitle>Regénérer le token ?</DialogTitle>
+            <DialogTitle>{t.regenDialogTitle}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500">
-            L'ancien token sera immédiatement invalidé. Vous devrez mettre à jour votre configuration Bridge Eats.
-          </p>
+          <p className="text-sm text-gray-500">{t.regenDialogMsg}</p>
           <DialogFooter className="mt-5 gap-2">
-            <Button variant="outline" onClick={() => setConfirmRegen(false)} className="flex-1">Annuler</Button>
+            <Button variant="outline" onClick={() => setConfirmRegen(false)} className="flex-1">{t.cancelBtn}</Button>
             <Button
               variant="destructive"
               onClick={handleRegenToken}
@@ -255,7 +246,7 @@ export default function Settings() {
               className="flex-1"
             >
               <RefreshCw size={13} className="mr-1.5" />
-              {regenerating ? "En cours..." : "Confirmer"}
+              {regenerating ? t.inProgress : t.confirmBtn}
             </Button>
           </DialogFooter>
         </DialogContent>
