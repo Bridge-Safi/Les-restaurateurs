@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, restaurantsTable, ordersTable } from "@workspace/db";
-import { getAuth } from "@clerk/express";
+import { getAuth } from "../lib/bridgeAuth";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -190,4 +190,4 @@ router.post("/webhook/orders", async (req: Request, res: Response): Promise<void
   res.status(201).json({ orderId: order.id, orderNumber: order.orderNumber, status: "received" });
 });
 
-export default router;
+export default route

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { db, ordersTable } from "@workspace/db";
-import { getAuth } from "@clerk/express";
+import { getAuth } from "../lib/bridgeAuth";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -17,7 +17,7 @@ import { addSseClient, removeSseClient } from "../lib/sseEmitter";
 
 const router: IRouter = Router();
 
-/* Helper: get the restaurant ID from the request (Clerk userId) — returns null if not authenticated */
+/* Helper: get the restaurant ID from the request (JWT userId) — returns null if not authenticated */
 function getRestaurantId(req: Request): string | null {
   return getAuth(req).userId ?? null;
 }
@@ -25,7 +25,8 @@ function getRestaurantId(req: Request): string | null {
 /* GET /orders/events — SSE stream for real-time order push notifications
    The browser keeps this connection open; the server sends an "new_order" event
    whenever a webhook creates an order for this restaurant.
-   EventSource uses cookies automatically, so Clerk session auth works as-is. */
+   EventSource ne peut pas envoyer de header Authorization : le JWT est passé
+   en query param (?token=...), lu par getAuth() en repli (voir bridgeAuth.ts). */
 router.get("/orders/events", (req: Request, res: Response): void => {
   const restaurantId = getRestaurantId(req);
   if (!restaurantId) { res.status(401).end(); return; }
