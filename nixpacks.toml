@@ -5,4 +5,4 @@ nixpkgsArchive = "51ad838b03a05b1de6f9f2a0fffecee64a9788ee"
 cmds = ["npx --yes pnpm@10 install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = ["npx --yes pnpm@10 run build"]
+cmds = ["npx --yes pnpm@10 --filter '!./artifacts/mockup-sandbox' run build"]
