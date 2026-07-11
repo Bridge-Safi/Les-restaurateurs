@@ -5,6 +5,7 @@ import {
   getGetRecentOrdersQueryKey,
   getGetOrderStatsQueryKey,
 } from "@workspace/api-client-react";
+import { getStoredToken } from "@/bridge-auth";
 
 /**
  * Real-time order updates via Server-Sent Events.
@@ -42,7 +43,13 @@ export function useOrdersSSE() {
     const connect = () => {
       if (unmountedRef.current) return;
 
-      const es = new EventSource("/api/orders/events");
+      /* EventSource ne peut pas envoyer de header Authorization, donc on
+         passe le JWT en query param (lu côté serveur par getAuth() en fallback). */
+      const token = getStoredToken();
+      const url = token
+        ? `/api/orders/events?token=${encodeURIComponent(token)}`
+        : "/api/orders/events";
+      const es = new EventSource(url);
       esRef.current = es;
 
       /* ── Reconnect catch-up ──────────────────────────────────────────────
