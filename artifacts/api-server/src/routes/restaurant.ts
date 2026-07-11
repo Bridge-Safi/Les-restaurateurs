@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db, restaurantsTable, ordersTable } from "@workspace/db";
 import { getAuth } from "../lib/bridgeAuth";
 import { z } from "zod";
@@ -226,6 +226,60 @@ router.post("/webhook/orders", async (req: Request, res: Response): Promise<void
   emitNewOrder(restaurant.clerkUserId);
 
   res.status(201).json({ orderId: order.id, orderNumber: order.orderNumber, status: "received" });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   PUBLIC WEBHOOK — appelé par Bridge Eats quand le CLIENT annule
+   POST /api/webhook/orders/:orderNumber/cancel
+   Header: X-Bridge-Token: <apiToken>
+   Sans cette route, une commande annulée côté client restait "en cuisine"
+   ou "prête" sur le dashboard restaurateur pour toujours — zabi: "quand le
+   client annule la livraison sa doit etre annulez meme dans restaurant".
+═══════════════════════════════════════════════════════════════ */
+router.post("/webhook/orders/:orderNumber/cancel", async (req: Request, res: Response): Promise<void> => {
+  const token = req.headers["x-bridge-token"];
+  if (!token || typeof token !== "string") {
+    res.status(401).json({ error: "Token manquant (header X-Bridge-Token requis)" });
+    return;
+  }
+
+  const [restaurant] = await db
+    .select()
+    .from(restaurantsTable)
+    .where(eq(restaurantsTable.apiToken, token))
+    .limit(1);
+
+  if (!restaurant) {
+    res.status(401).json({ error: "Token invalide" });
+    return;
+  }
+
+  const orderNumber = String(req.params.orderNumber);
+  const [order] = await db
+    .update(ordersTable)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(ordersTable.orderNumber, orderNumber),
+        eq(ordersTable.restaurantId, restaurant.clerkUserId)
+      )
+    )
+    .returning();
+
+  if (!order) {
+    // Pas grave si la commande n'existe pas encore côté resto (ex: annulée
+    // avant même que le webhook de création soit arrivé) — best-effort.
+    res.json({ ok: true, found: false });
+    return;
+  }
+
+  req.log.info({ orderId: order.id, restaurantId: restaurant.id, orderNumber }, "Order cancelled via client webhook");
+
+  /* Push real-time notification to all connected dashboard tabs for this restaurant */
+  const { emitNewOrder } = await import("../lib/sseEmitter");
+  emitNewOrder(restaurant.clerkUserId);
+
+  res.json({ ok: true, found: true, orderNumber: order.orderNumber, status: "cancelled" });
 });
 
 export default router;
