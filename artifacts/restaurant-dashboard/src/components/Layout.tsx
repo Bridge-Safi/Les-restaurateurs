@@ -4,9 +4,7 @@ import { LayoutGrid, History, LogOut, Bell, Settings } from "lucide-react";
 import { useAlarm } from "@/contexts/AlarmContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGS, type Lang } from "@/i18n";
-import { useUser, useClerk } from "@clerk/react";
-
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { useUser, useBridgeAuth } from "@/bridge-auth";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -40,7 +38,7 @@ export function Layout({ children }: LayoutProps) {
   const { pendingOrders, testAlarm } = useAlarm();
   const [time, setTime] = useState(new Date());
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const { signOut } = useBridgeAuth();
 
   useEffect(() => {
     const tick = setInterval(() => setTime(new Date()), 1000);
@@ -56,8 +54,8 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   const initials = (
-    user?.firstName?.[0] ??
-    user?.emailAddresses?.[0]?.emailAddress?.[0] ??
+    user?.name?.[0] ??
+    user?.email?.[0] ??
     "?"
   ).toUpperCase();
 
@@ -134,14 +132,14 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-gray-300 text-xs font-semibold truncate">
-                {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "Utilisateur"}
+                {user?.name || user?.email?.split("@")[0] || "Utilisateur"}
               </p>
               <p className="text-gray-600 text-xs truncate">
-                {user?.emailAddresses?.[0]?.emailAddress}
+                {user?.email}
               </p>
             </div>
             <button
-              onClick={() => signOut({ redirectUrl: basePath || "/" })}
+              onClick={() => signOut()}
               data-testid="btn-sign-out"
               title="Se déconnecter"
               className="text-gray-600 hover:text-gray-300 transition-colors p-1 rounded flex-shrink-0"
@@ -187,7 +185,7 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Mobile: sign out */}
             <button
-              onClick={() => signOut({ redirectUrl: basePath || "/" })}
+              onClick={() => signOut()}
               data-testid="btn-sign-out-mobile"
               className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
