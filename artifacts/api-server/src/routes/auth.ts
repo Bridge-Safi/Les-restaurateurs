@@ -30,6 +30,14 @@ function isEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
+/* Types de commerce supportes par ce tableau de bord (voir aussi
+   restaurant-dashboard/src/lib/service-types.ts pour la config d'affichage).
+   Taxi et Supermarche sont volontairement exclus. */
+const SERVICE_TYPES = ["restaurant", "tabac", "pharmacie", "fleurs", "boulangerie", "souk"];
+function cleanServiceType(v: unknown): string {
+  return typeof v === "string" && SERVICE_TYPES.includes(v) ? v : "restaurant";
+}
+
 /* Bootstrap défensif : crée les tables restaurants/orders si elles n'existent
    pas encore (la base de données de ce service n'avait jamais été migrée —
    root cause du crash "relation restaurants does not exist"), puis ajoute les
@@ -51,6 +59,7 @@ async function ensureSchema() {
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS password_hash TEXT;
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS salt TEXT;
+    ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS service_type TEXT NOT NULL DEFAULT 'restaurant';
   `);
 
   await pool.query(`
@@ -87,16 +96,18 @@ function shapeUser(row: any) {
     phone: null,
     name: row.name || "",
     role: "restaurant",
+    serviceType: row.service_type || "restaurant",
     imageUrl: "",
   };
 }
 
 router.post("/auth/register", async (req: Request, res: Response): Promise<void> => {
-  const { email, password, name } = req.body as { email?: string; password?: string; name?: string };
+  const { email, password, name, serviceType } = req.body as { email?: string; password?: string; name?: string; serviceType?: string };
   if (!email || !isEmail(email)) { res.status(400).json({ error: "Adresse email invalide" }); return; }
   if (!password || password.length < 8) { res.status(400).json({ error: "Mot de passe trop faible (8 caractères min.)" }); return; }
   const cleanEmail = email.trim().toLowerCase();
-  const cleanName = (name || "").trim() || "Mon Restaurant";
+  const cleanName = (name || "").trim() || "Mon Commerce";
+  const cleanServiceTypeVal = cleanServiceType(serviceType);
   try {
     const existing = await pool.query(`SELECT id FROM restaurants WHERE email = $1`, [cleanEmail]);
     if (existing.rows.length > 0) {
@@ -107,13 +118,13 @@ router.post("/auth/register", async (req: Request, res: Response): Promise<void>
     const salt = randomUUID();
     const hash = hashPassword(password, salt);
     const result = await pool.query(
-      `INSERT INTO restaurants (clerk_user_id, name, email, password_hash, salt)
-       VALUES ($1,$2,$3,$4,$5) RETURNING clerk_user_id, name, email`,
-      [clerkUserId, cleanName, cleanEmail, hash, salt],
+      `INSERT INTO restaurants (clerk_user_id, name, email, password_hash, salt, service_type)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING clerk_user_id, name, email, service_type`,
+      [clerkUserId, cleanName, cleanEmail, hash, salt, cleanServiceTypeVal],
     );
     const row = result.rows[0];
     const token = signJWT({ sub: clerkUserId, role: "restaurant" });
-    logger.info({ clerkUserId }, "New restaurant registered");
+    logger.info({ clerkUserId, serviceType: cleanServiceTypeVal }, "New restaurant registered");
     res.status(201).json({ token, user: shapeUser(row) });
   } catch (err) {
     logger.error({ err }, "Register error");
@@ -128,7 +139,7 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
   const cleanEmail = email.trim().toLowerCase();
   try {
     const result = await pool.query(
-      `SELECT clerk_user_id, name, email, password_hash, salt FROM restaurants WHERE email = $1`,
+      `SELECT clerk_user_id, name, email, service_type, password_hash, salt FROM restaurants WHERE email = $1`,
       [cleanEmail],
     );
     if (result.rows.length === 0) {
@@ -154,7 +165,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Non authentifié" }); return; }
   try {
     const result = await pool.query(
-      `SELECT clerk_user_id, name, email FROM restaurants WHERE clerk_user_id = $1`,
+      `SELECT clerk_user_id, name, email, service_type FROM restaurants WHERE clerk_user_id = $1`,
       [userId],
     );
     if (result.rows.length === 0) { res.status(401).json({ error: "Compte introuvable" }); return; }
