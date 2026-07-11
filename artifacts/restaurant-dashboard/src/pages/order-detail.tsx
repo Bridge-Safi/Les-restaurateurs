@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,9 +18,14 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft, CheckCircle, XCircle, ChefHat,
   Phone, MapPin, Clock, StickyNote,
 } from "lucide-react";
+
+const PREP_TIMES = [10, 15, 20, 25, 30];
 
 const STATUS_STEPS = ["pending", "accepted", "ready", "picked_up"];
 
@@ -76,6 +82,9 @@ export default function OrderDetail() {
   const rejectOrder = useRejectOrder();
   const markReady   = useMarkOrderReady();
 
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [prepTime, setPrepTime] = useState(20);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: getGetOrderQueryKey(id) });
     qc.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
@@ -84,9 +93,10 @@ export default function OrderDetail() {
   };
 
   const handleAccept = async () => {
-    await acceptOrder.mutateAsync({ id, data: { estimatedPrepTime: 20 } });
+    await acceptOrder.mutateAsync({ id, data: { estimatedPrepTime: prepTime } });
     invalidate();
-    toast({ title: t.toastAccepted });
+    setAcceptDialogOpen(false);
+    toast({ title: t.toastAccepted, description: t.prepSuffix(prepTime) });
   };
 
   const handleReject = async () => {
@@ -144,7 +154,7 @@ export default function OrderDetail() {
               <Button size="sm" variant="destructive" onClick={handleReject} disabled={rejectOrder.isPending} data-testid="btn-reject-detail">
                 <XCircle size={14} className="mr-1.5" /> {t.btnReject}
               </Button>
-              <Button size="sm" onClick={handleAccept} disabled={acceptOrder.isPending} data-testid="btn-accept-detail" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+              <Button size="sm" onClick={() => setAcceptDialogOpen(true)} disabled={acceptOrder.isPending} data-testid="btn-accept-detail" className="bg-emerald-500 hover:bg-emerald-600 text-white">
                 <CheckCircle size={14} className="mr-1.5" /> {t.btnAccept}
               </Button>
             </>
@@ -287,6 +297,37 @@ export default function OrderDetail() {
           )}
         </div>
       </div>
+
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent className="max-w-sm mx-4">
+          <DialogHeader>
+            <DialogTitle>{t.acceptTitle}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500 mb-4">{t.prepTimeLabel}</p>
+          <div className="grid grid-cols-5 gap-2">
+            {PREP_TIMES.map((time) => (
+              <button
+                key={time}
+                onClick={() => setPrepTime(time)}
+                data-testid={`prep-time-${time}`}
+                className={`py-3 rounded-lg text-sm font-bold border-2 transition-all ${
+                  prepTime === time
+                    ? "border-[#FF6B35] bg-orange-50 text-orange-600"
+                    : "border-gray-200 text-gray-500"
+                }`}
+              >
+                {time}m
+              </button>
+            ))}
+          </div>
+          <DialogFooter className="mt-5 gap-2">
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)} className="flex-1">{t.cancelBtn}</Button>
+            <Button onClick={handleAccept} disabled={acceptOrder.isPending} data-testid="btn-confirm-accept-detail" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white">
+              <CheckCircle size={15} className="mr-1.5" /> {t.confirmBtn}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
