@@ -108,7 +108,7 @@ router.post(
 );
 
 /* ═══════════════════════════════════════════════════════════════
-   PUBLIC WEBHOOK — called by Bridge Eats (no Clerk auth)
+   PUBLIC WEBHOOK — appelé par Bridge Eats (pas d'auth JWT)
    POST /api/webhook/orders
    Header: X-Bridge-Token: <apiToken>
    Body: same as CreateOrderBody + optional callbackUrl
@@ -190,4 +190,4 @@ router.post("/webhook/orders", async (req: Request, res: Response): Promise<void
   res.status(201).json({ orderId: order.id, orderNumber: order.orderNumber, status: "received" });
 });
 
-export default route
+export default router;
