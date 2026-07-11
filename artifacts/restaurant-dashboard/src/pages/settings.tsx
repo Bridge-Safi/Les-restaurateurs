@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getStoredToken } from "@/bridge-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +19,15 @@ interface RestaurantProfile {
   name: string;
   apiToken: string;
   createdAt: string;
+}
+
+/* Les endpoints /api/restaurant/me* n'ont pas de hook genere (ajoutes apres
+   la generation du client), donc on fait un fetch direct ici. Depuis le
+   retrait de Clerk, l'authentification passe par un JWT Bearer (plus par
+   cookie de session) — il faut donc l'attacher nous-memes a chaque appel. */
+function authHeaders(): HeadersInit {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function useCopy() {
@@ -43,8 +53,11 @@ export default function Settings() {
   const webhookUrl = `${window.location.origin}${BASE}/api/webhook/orders`;
 
   useEffect(() => {
-    fetch(`${API}/restaurant/me`, { credentials: "include" })
-      .then((r) => r.json())
+    fetch(`${API}/restaurant/me`, { headers: authHeaders() })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("auth");
+        return r.json();
+      })
       .then((data: RestaurantProfile) => {
         setProfile(data);
         setName(data.name ?? "");
@@ -59,13 +72,13 @@ export default function Settings() {
     try {
       const res = await fetch(`${API}/restaurant/me`, {
         method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ name: name.trim() }),
       });
+      if (!res.ok) throw new Error("save failed");
       const updated = await res.json();
       setProfile(updated);
-      setName(updated.name);
+      setName(updated.name ?? "");
       toast({ title: t.toastNameSaved });
     } catch {
       toast({ title: t.toastError, variant: "destructive" });
@@ -79,8 +92,9 @@ export default function Settings() {
     try {
       const res = await fetch(`${API}/restaurant/me/regenerate-token`, {
         method: "POST",
-        credentials: "include",
+        headers: authHeaders(),
       });
+      if (!res.ok) throw new Error("regen failed");
       const updated = await res.json();
       setProfile(updated);
       setConfirmRegen(false);
@@ -126,7 +140,7 @@ export default function Settings() {
                 />
                 <Button
                   onClick={handleSaveName}
-                  disabled={saving || name.trim() === profile?.name}
+                  disabled={saving || !profile || name.trim() === profile?.name}
                   data-testid="btn-save-name"
                   className="bg-[#FF6B35] hover:bg-orange-600 text-white px-4"
                 >
@@ -195,7 +209,7 @@ export default function Settings() {
                       {profile?.apiToken}
                     </code>
                     <button
-                      onClick={() => copy(profile!.apiToken, "token")}
+                      onClick={() => profile && copy(profile.apiToken, "token")}
                       className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
                       data-testid="btn-copy-token"
                       title={t.copyTokenTitle}
