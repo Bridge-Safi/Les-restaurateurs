@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
-import { shadcn } from "@clerk/themes";
+import { useEffect, useRef, useState } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect, Link } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider, useUser, useBridgeAuth } from "@/bridge-auth";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AlarmProvider } from "@/contexts/AlarmContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
@@ -20,160 +22,184 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-function stripBase(path: string): string {
-  return basePath && path.startsWith(basePath)
-    ? path.slice(basePath.length) || "/"
-    : path;
-}
+/* ── Formulaire partagé connexion / inscription ── */
+function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+  const { signIn, signUp } = useBridgeAuth();
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-const clerkAppearance = {
-  theme: shadcn,
-  cssLayerName: "clerk",
-  options: {
-    logoPlacement: "inside" as const,
-    logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-    socialButtonsPlacement: "bottom" as const,
-  },
-  variables: {
-    colorPrimary: "#FF6B35",
-    colorForeground: "#1a1a2e",
-    colorMutedForeground: "#6b7280",
-    colorDanger: "#ef4444",
-    colorBackground: "#ffffff",
-    colorInput: "#f9fafb",
-    colorInputForeground: "#1a1a2e",
-    colorNeutral: "#e5e7eb",
-    fontFamily: "Inter, sans-serif",
-    borderRadius: "0.75rem",
-  },
-  elements: {
-    rootBox: "w-full flex justify-center",
-    cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl border border-gray-100",
-    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-gray-900 font-bold",
-    headerSubtitle: "text-gray-500",
-    socialButtonsBlockButtonText: "text-gray-700 font-medium",
-    formFieldLabel: "text-gray-700 font-medium",
-    footerActionLink: "text-orange-500 hover:text-orange-600 font-semibold",
-    footerActionText: "text-gray-500",
-    dividerText: "text-gray-400",
-    identityPreviewEditButton: "text-orange-500",
-    formFieldSuccessText: "text-emerald-600",
-    alertText: "text-gray-700",
-    logoBox: "flex justify-center py-2",
-    logoImage: "h-10 w-auto",
-    socialButtonsBlockButton: "border border-gray-200 hover:border-gray-300 bg-white",
-    formButtonPrimary: "bg-orange-500 hover:bg-orange-600 text-white font-semibold",
-    formFieldInput: "bg-gray-50 border-gray-200 text-gray-900",
-    footerAction: "bg-gray-50",
-    dividerLine: "bg-gray-200",
-    alert: "bg-red-50 border-red-200",
-    otpCodeFieldInput: "border-gray-200 text-gray-900",
-    formFieldRow: "",
-    main: "",
-  },
-};
+  const isSignUp = mode === "sign-up";
 
-function SignInPage() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        await signUp(email, password, name);
+      } else {
+        await signIn(email, password);
+      }
+      setLocation(basePath || "/");
+    } catch (err: any) {
+      setError(err?.message || "Une erreur est survenue.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50 px-4">
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
+      <div className="bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl border border-gray-100 p-8">
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-bold text-gray-900">
+            {isSignUp ? "Créer un compte" : "Connexion"}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isSignUp
+              ? "Rejoignez Bridge Eats et gérez vos commandes"
+              : "Accédez à votre tableau de bord Bridge Eats"}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Nom du restaurant</Label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Mon Restaurant"
+                className="bg-gray-50 border-gray-200"
+              />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@exemple.com"
+              className="bg-gray-50 border-gray-200"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Mot de passe</Label>
+            <Input
+              id="password"
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="8 caractères minimum"
+              className="bg-gray-50 border-gray-200"
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+          >
+            {loading ? "Chargement..." : isSignUp ? "Créer mon compte" : "Se connecter"}
+          </Button>
+        </form>
+
+        <div className="text-center mt-6 text-sm text-gray-500">
+          {isSignUp ? (
+            <>
+              Déjà un compte ?{" "}
+              <Link href="/sign-in" className="text-orange-500 hover:text-orange-600 font-semibold">
+                Se connecter
+              </Link>
+            </>
+          ) : (
+            <>
+              Pas encore de compte ?{" "}
+              <Link href="/sign-up" className="text-orange-500 hover:text-orange-600 font-semibold">
+                S'inscrire
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
+}
+
+function SignInPage() {
+  return <AuthForm mode="sign-in" />;
 }
 
 function SignUpPage() {
-  return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50 px-4">
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
-    </div>
-  );
-}
-
-function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
-  const qc = useQueryClient();
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
-        qc.clear();
-      }
-      prevUserIdRef.current = userId;
-    });
-    return unsubscribe;
-  }, [addListener, qc]);
-
-  return null;
+  return <AuthForm mode="sign-up" />;
 }
 
 /* Auto-creates the restaurant profile on first login so the API token is available immediately */
 function RestaurantInitializer() {
-  const { isSignedIn } = useAuth();
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (!isSignedIn || initialized.current) return;
+    if (initialized.current) return;
     initialized.current = true;
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/restaurant/me`, { credentials: "include" }).catch(() => {});
-  }, [isSignedIn]);
+  }, []);
 
   return null;
 }
 
 function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
+  const { isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) return null;
+  if (isSignedIn) {
+    return (
+      <>
         <RestaurantInitializer />
         <AlarmProvider>
           <Layout>
             <Dashboard />
           </Layout>
         </AlarmProvider>
-      </Show>
-      <Show when="signed-out">
-        <Landing />
-      </Show>
-    </>
-  );
+      </>
+    );
+  }
+  return <Landing />;
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Redirect to="/" />;
   return (
     <>
-      <Show when="signed-in">
-        <RestaurantInitializer />
-        <AlarmProvider>
-          <Layout>{children}</Layout>
-        </AlarmProvider>
-      </Show>
-      <Show when="signed-out">
-        <Redirect to="/" />
-      </Show>
+      <RestaurantInitializer />
+      <AlarmProvider>
+        <Layout>{children}</Layout>
+      </AlarmProvider>
     </>
   );
 }
@@ -206,56 +232,19 @@ function Router() {
   );
 }
 
-function ClerkProviderWithRoutes() {
-  const [, setLocation] = useLocation();
-
-  return (
-    <ClerkProvider
-      publishableKey={clerkPubKey!}
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-      signInUrl={`${basePath}/sign-in`}
-      signUpUrl={`${basePath}/sign-up`}
-      signInFallbackRedirectUrl={basePath || "/"}
-      signUpFallbackRedirectUrl={basePath || "/"}
-      localization={{
-        signIn: {
-          start: {
-            title: "Connexion",
-            subtitle: "Accédez à votre tableau de bord Bridge Eats",
-            actionText: "Pas encore de compte ?",
-            actionLink: "S'inscrire",
-          },
-        },
-        signUp: {
-          start: {
-            title: "Créer un compte",
-            subtitle: "Rejoignez Bridge Eats et gérez vos commandes",
-            actionText: "Déjà un compte ?",
-            actionLink: "Se connecter",
-          },
-        },
-      }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-    >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <TooltipProvider>
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
-  );
-}
-
 function App() {
   return (
     <LanguageProvider>
-      <WouterRouter base={basePath}>
-        <ClerkProviderWithRoutes />
-      </WouterRouter>
+      <AuthProvider>
+        <WouterRouter base={basePath}>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Router />
+              <Toaster />
+            </TooltipProvider>
+          </QueryClientProvider>
+        </WouterRouter>
+      </AuthProvider>
     </LanguageProvider>
   );
 }
