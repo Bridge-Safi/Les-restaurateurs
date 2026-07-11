@@ -17,6 +17,8 @@ export interface BridgeUser {
   email: string | null;
   name: string;
   role: 'restaurant';
+  /** Type de commerce (restaurant/tabac/pharmacie/fleurs/boulangerie/souk) */
+  serviceType: string;
   imageUrl: string;
   primaryPhoneNumber: { phoneNumber: string } | null;
   primaryEmailAddress: { emailAddress: string } | null;
@@ -31,7 +33,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string, remember?: boolean) => Promise<void>;
-  signUp: (email: string, password: string, name?: string, remember?: boolean) => Promise<void>;
+  signUp: (email: string, password: string, name?: string, serviceType?: string, remember?: boolean) => Promise<void>;
   signOut: () => void;
   getToken: () => Promise<string | null>;
 }
@@ -74,6 +76,7 @@ function normalizeUser(raw: any): BridgeUser {
     email: raw.email ?? null,
     name: raw.name ?? '',
     role: 'restaurant',
+    serviceType: raw.serviceType ?? 'restaurant',
     imageUrl: raw.imageUrl ?? '',
     primaryPhoneNumber: raw.phone ? { phoneNumber: raw.phone } : null,
     primaryEmailAddress: raw.email ? { emailAddress: raw.email } : null,
@@ -128,10 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ isLoaded: true, isSignedIn: true, user, token: data.token });
   };
 
-  const signUp = async (email: string, password: string, name?: string, remember: boolean = true) => {
+  const signUp = async (email: string, password: string, name?: string, serviceType?: string, remember: boolean = true) => {
     const r = await fetch('/api/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), password, name: name?.trim() || '' }),
+      body: JSON.stringify({ email: email.trim(), password, name: name?.trim() || '', serviceType: serviceType || 'restaurant' }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Erreur lors de la création du compte.');

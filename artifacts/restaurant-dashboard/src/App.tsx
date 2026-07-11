@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useUser, useBridgeAuth, getStoredToken } from "@/bridge-auth";
+import { SERVICE_TYPES, getServiceTypeConfig, type ServiceType } from "@/lib/service-types";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AlarmProvider } from "@/contexts/AlarmContext";
@@ -36,10 +37,12 @@ function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [serviceType, setServiceType] = useState<ServiceType>("restaurant");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isSignUp = mode === "sign-up";
+  const serviceConfig = getServiceTypeConfig(serviceType);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +50,7 @@ function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setLoading(true);
     try {
       if (isSignUp) {
-        await signUp(email, password, name);
+        await signUp(email, password, name, serviceType);
       } else {
         await signIn(email, password);
       }
@@ -76,13 +79,36 @@ function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div className="space-y-1.5">
-              <Label htmlFor="name">Nom du restaurant</Label>
+              <Label>Type de commerce</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {SERVICE_TYPES.map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setServiceType(s.key)}
+                    data-testid={`service-type-${s.key}`}
+                    className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg text-xs font-semibold border-2 transition-all ${
+                      serviceType === s.key
+                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        : "border-gray-200 text-gray-500"
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{s.emoji}</span>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isSignUp && (
+            <div className="space-y-1.5">
+              <Label htmlFor="name">{serviceConfig.nameLabel}</Label>
               <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Mon Restaurant"
+                placeholder={`Mon ${serviceConfig.label}`}
                 className="bg-gray-50 border-gray-200"
               />
             </div>
