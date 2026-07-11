@@ -5,6 +5,7 @@ import { useAlarm } from "@/contexts/AlarmContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGS, type Lang } from "@/i18n";
 import { useUser, useBridgeAuth } from "@/bridge-auth";
+import { getServiceTypeConfig } from "@/lib/service-types";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
   const [time, setTime] = useState(new Date());
   const { user } = useUser();
   const { signOut } = useBridgeAuth();
+  const serviceConfig = getServiceTypeConfig(user?.serviceType);
 
   useEffect(() => {
     const tick = setInterval(() => setTime(new Date()), 1000);
@@ -70,7 +72,12 @@ export function Layout({ children }: LayoutProps) {
           <div className="w-8 h-8 rounded-lg bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
             <BridgeIcon />
           </div>
-          <span className="font-bold text-white text-base tracking-tight">Bridge Eats</span>
+          <div className="min-w-0">
+            <span className="font-bold text-white text-base tracking-tight block leading-tight">Bridge Eats</span>
+            <span className="text-gray-500 text-[11px] leading-tight">
+              {serviceConfig.emoji} {serviceConfig.label}
+            </span>
+          </div>
         </div>
 
         {/* Clock */}
@@ -160,7 +167,10 @@ export function Layout({ children }: LayoutProps) {
             <div className="w-7 h-7 rounded-lg bg-[#FF6B35] flex items-center justify-center">
               <BridgeIcon size={16} />
             </div>
-            <span className="font-bold text-gray-900 text-sm">Bridge Eats</span>
+            <div className="leading-tight">
+              <span className="font-bold text-gray-900 text-sm block">Bridge Eats</span>
+              <span className="text-gray-400 text-[10px]">{serviceConfig.emoji} {serviceConfig.label}</span>
+            </div>
           </div>
           {/* Desktop: live indicator */}
           <div className="hidden md:flex items-center gap-2">
