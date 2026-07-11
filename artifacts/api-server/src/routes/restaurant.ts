@@ -108,6 +108,44 @@ router.post(
 );
 
 /* ═══════════════════════════════════════════════════════════════
+   LOOKUP INTERNE — appelé par Bridge-safi (api-server) pour retrouver
+   automatiquement le token webhook d'un restaurant par son nom, sans
+   qu'aucune configuration manuelle ne soit nécessaire à chaque nouvel
+   inscrit. Protégé par un secret partagé (pas d'auth JWT restaurant).
+   GET /api/restaurant/lookup?name=Sushi%20Safi
+   Header: X-Internal-Secret: <secret>
+═══════════════════════════════════════════════════════════════ */
+const INTERNAL_LOOKUP_SECRET =
+  process.env.INTERNAL_LOOKUP_SECRET || "bridge-safi-internal-lookup-2026";
+
+router.get("/restaurant/lookup", async (req: Request, res: Response): Promise<void> => {
+  const secret = req.headers["x-internal-secret"];
+  if (secret !== INTERNAL_LOOKUP_SECRET) {
+    res.status(401).json({ error: "Non autorisé" });
+    return;
+  }
+
+  const name = (req.query.name as string || "").trim();
+  if (!name) {
+    res.status(400).json({ error: "name requis" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(restaurantsTable)
+    .where(sql`lower(${restaurantsTable.name}) = lower(${name})`)
+    .limit(1);
+
+  if (rows.length === 0) {
+    res.json({ found: false });
+    return;
+  }
+
+  res.json({ found: true, name: rows[0].name, apiToken: rows[0].apiToken });
+});
+
+/* ═══════════════════════════════════════════════════════════════
    PUBLIC WEBHOOK — appelé par Bridge Eats (pas d'auth JWT)
    POST /api/webhook/orders
    Header: X-Bridge-Token: <apiToken>
