@@ -253,15 +253,20 @@ router.post("/orders/:id/accept", async (req: Request, res: Response): Promise<v
     return;
   }
 
-  /* Notify Bridge Eats asynchronously — do not block the response */
+  /* Notify Bridge Eats asynchronously — do not block the response.
+     On envoie "preparing" (pas "accepted") : côté Bridge-safi, "accepted" et
+     "preparing" font tous les deux avancer la barre de progression, mais seul
+     "preparing" affiche le texte "En préparation" au client (voir
+     STATUS_LABEL dans App.tsx) — c'est précisément ce que zabi veut voir
+     apparaître une fois que le resto a choisi son temps de préparation. */
   if (order.callbackUrl) {
     notifyBridgeEats(order.callbackUrl, {
       orderId: order.id,
       orderNumber: order.orderNumber,
-      status: "accepted",
+      status: "preparing",
       estimatedPrepTime: order.estimatedPrepTime,
     }).then((result) => {
-      req.log.info({ orderId: order.id, callbackResult: result }, "Bridge Eats callback: accepted");
+      req.log.info({ orderId: order.id, callbackResult: result }, "Bridge Eats callback: preparing");
     }).catch(() => {/* swallow */});
   }
 
