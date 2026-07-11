@@ -30,14 +30,55 @@ function isEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
-async function ensureAuthColumns() {
+/* Bootstrap défensif : crée les tables restaurants/orders si elles n'existent
+   pas encore (la base de données de ce service n'avait jamais été migrée —
+   root cause du crash "relation restaurants does not exist"), puis ajoute les
+   colonnes d'authentification. Idempotent, sans dépendance à drizzle-kit. */
+async function ensureSchema() {
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS restaurants (
+      id SERIAL PRIMARY KEY,
+      clerk_user_id TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL DEFAULT 'Mon Restaurant',
+      api_token TEXT NOT NULL DEFAULT gen_random_uuid(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
   await pool.query(`
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS password_hash TEXT;
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS salt TEXT;
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      restaurant_id TEXT,
+      order_number TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      platform TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT,
+      items JSONB NOT NULL,
+      total_amount REAL NOT NULL,
+      estimated_prep_time INTEGER,
+      delivery_address TEXT,
+      delivery_person_name TEXT,
+      delivery_person_phone TEXT,
+      notes TEXT,
+      rejection_reason TEXT,
+      callback_url TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      accepted_at TIMESTAMPTZ,
+      ready_at TIMESTAMPTZ
+    );
+  `);
 }
-ensureAuthColumns().catch((err) => logger.error({ err }, "Failed to add restaurants auth columns"));
+ensureSchema().catch((err) => logger.error({ err }, "Failed to bootstrap restaurants/orders schema"));
 
 function shapeUser(row: any) {
   return {
