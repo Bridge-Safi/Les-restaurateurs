@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useUser, useBridgeAuth } from "@/bridge-auth";
+import { AuthProvider, useUser, useBridgeAuth, getStoredToken } from "@/bridge-auth";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AlarmProvider } from "@/contexts/AlarmContext";
@@ -166,7 +166,10 @@ function RestaurantInitializer() {
     if (initialized.current) return;
     initialized.current = true;
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    fetch(`${base}/api/restaurant/me`, { credentials: "include" }).catch(() => {});
+    const token = getStoredToken();
+    fetch(`${base}/api/restaurant/me`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).catch(() => {});
   }, []);
 
   return null;
