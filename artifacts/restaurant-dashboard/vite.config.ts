@@ -16,6 +16,13 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH || "/";
 
+// L'API (artifacts/api-server) est un service Railway séparé, sans domaine
+// partagé avec le frontend. On proxy /api vers son domaine public Railway
+// pour que les appels relatifs fetch('/api/...') du frontend fonctionnent.
+const apiProxyTarget =
+  process.env.API_PROXY_TARGET ||
+  "https://workspaceapi-server-production-2ad0.up.railway.app";
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -56,10 +63,24 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 });
