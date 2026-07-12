@@ -86,6 +86,9 @@ async function ensureSchema() {
       ready_at TIMESTAMPTZ
     );
   `);
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMPTZ;
+  `);
 }
 ensureSchema().catch((err) => logger.error({ err }, "Failed to bootstrap restaurants/orders schema"));
 

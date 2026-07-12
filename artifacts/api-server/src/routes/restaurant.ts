@@ -123,6 +123,24 @@ router.post(
 const INTERNAL_LOOKUP_SECRET =
   process.env.INTERNAL_LOOKUP_SECRET || "bridge-safi-internal-lookup-2026";
 
+/* GET /api/restaurant/all — liste complete des commerces inscrits.
+   Header: X-Internal-Secret. Utilise par Manager pour afficher les
+   restaurants inscrits sur ce dashboard (bases separees). */
+router.get("/restaurant/all", async (req: Request, res: Response): Promise<void> => {
+  const secret = req.headers["x-internal-secret"];
+  if (secret !== INTERNAL_LOOKUP_SECRET) {
+    res.status(401).json({ error: "Non autorisé" });
+    return;
+  }
+  const rows = await db.select().from(restaurantsTable);
+  res.json(rows.map((r) => ({
+    name: r.name,
+    email: (r as { email?: string | null }).email ?? null,
+    serviceType: (r as { serviceType?: string | null }).serviceType ?? "restaurant",
+    createdAt: r.createdAt ? new Date(r.createdAt as unknown as string | Date).toISOString() : null,
+  })));
+});
+
 router.get("/restaurant/lookup", async (req: Request, res: Response): Promise<void> => {
   const secret = req.headers["x-internal-secret"];
   if (secret !== INTERNAL_LOOKUP_SECRET) {
@@ -285,6 +303,55 @@ router.post("/webhook/orders/:orderNumber/cancel", async (req: Request, res: Res
   emitNewOrder(restaurant.clerkUserId);
 
   res.json({ ok: true, found: true, orderNumber: order.orderNumber, status: "cancelled" });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   POST /api/webhook/orders/:orderNumber/picked-up
+   Header: X-Bridge-Token: <apiToken>
+   Appele par Bridge-safi quand le livreur recupere la commande ->
+   coche verte "Récupérée" sur la carte dans la colonne "Prêtes".
+═══════════════════════════════════════════════════════════════ */
+router.post("/webhook/orders/:orderNumber/picked-up", async (req: Request, res: Response): Promise<void> => {
+  const token = req.headers["x-bridge-token"];
+  if (!token || typeof token !== "string") {
+    res.status(401).json({ error: "Token manquant (header X-Bridge-Token requis)" });
+    return;
+  }
+
+  const [restaurant] = await db
+    .select()
+    .from(restaurantsTable)
+    .where(eq(restaurantsTable.apiToken, token))
+    .limit(1);
+
+  if (!restaurant) {
+    res.status(401).json({ error: "Token invalide" });
+    return;
+  }
+
+  const orderNumber = String(req.params.orderNumber);
+  const [order] = await db
+    .update(ordersTable)
+    .set({ pickedUpAt: new Date() })
+    .where(
+      and(
+        eq(ordersTable.orderNumber, orderNumber),
+        eq(ordersTable.restaurantId, restaurant.clerkUserId)
+      )
+    )
+    .returning();
+
+  if (!order) {
+    res.json({ ok: true, found: false });
+    return;
+  }
+
+  req.log.info({ orderId: order.id, restaurantId: restaurant.id, orderNumber }, "Order picked up by driver (webhook)");
+
+  const { emitNewOrder } = await import("../lib/sseEmitter");
+  emitNewOrder(restaurant.clerkUserId);
+
+  res.json({ ok: true, found: true, orderNumber: order.orderNumber });
 });
 
 export default router;
