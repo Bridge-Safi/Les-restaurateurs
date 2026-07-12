@@ -123,6 +123,12 @@ function Card({ order, onAccept, onReject, onReady }: {
         </div>
       )}
 
+      {order.status === "ready" && (order as { pickedUpAt?: string | null }).pickedUpAt && (
+        <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold mt-1">
+          <CheckCircle size={13} /> Récupérée par le livreur ✓
+        </div>
+      )}
+
       {order.status === "accepted" && onReady && (
         <button
           onClick={() => onReady(order.id)}
