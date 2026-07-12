@@ -36,7 +36,12 @@ export async function notifyBridgeEats(
   }
 ) {
   try {
-    const res = await fetch(callbackUrl, {
+    // Répare les callbackUrl enregistrés avec le domaine apex : safi-bridge.ma
+    // sans www n'existe pas en DNS (NXDOMAIN) -> le fetch échouait direct et
+    // le client Bridge Eats ne voyait jamais "En préparation". Les anciennes
+    // commandes en base gardent la mauvaise URL, donc on corrige ici.
+    const fixedUrl = callbackUrl.replace(/^https?:\/\/safi-bridge\.ma\//, "https://www.safi-bridge.ma/");
+    const res = await fetch(fixedUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
