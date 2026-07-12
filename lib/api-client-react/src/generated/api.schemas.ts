@@ -55,6 +55,7 @@ export interface Order {
   acceptedAt?: string | null;
   /** @nullable */
   readyAt?: string | null;
+  pickedUpAt?: string | null;
 }
 
 export type ListOrdersResponse = Order[];
