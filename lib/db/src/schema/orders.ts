@@ -32,6 +32,8 @@ export const ordersTable = pgTable("orders", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
   readyAt: timestamp("ready_at", { withTimezone: true }),
+  // Renseigne quand le livreur a recupere la commande (coche verte kanban)
+  pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
 });
 
 export const insertOrderSchema = createInsertSchema(ordersTable).omit({
